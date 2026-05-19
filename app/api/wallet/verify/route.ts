@@ -40,6 +40,27 @@ export async function POST(req: Request) {
     verified = data.data?.status === 'successful'
   }
 
+  // After: verified = data.data?.status === 'success' (paystack)
+// Add amount double-check:
+
+if (provider === 'paystack') {
+  const res = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+    headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
+  })
+  const data = await res.json()
+  const paidAmount = data.data?.amount / 100 // convert kobo to naira
+  verified = data.data?.status === 'success' && paidAmount === transaction.amount
+}
+
+if (provider === 'flutterwave') {
+  const res = await fetch(`https://api.flutterwave.com/v3/transactions/${reference}/verify`, {
+    headers: { Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}` }
+  })
+  const data = await res.json()
+  const paidAmount = data.data?.amount
+  verified = data.data?.status === 'successful' && paidAmount === transaction.amount
+}
+
   if (!verified) {
     await supabaseAdmin
       .from('transactions')

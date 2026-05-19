@@ -44,25 +44,28 @@ export async function POST(req: Request) {
     await incrementSession(session_id, questionNumber)
     return NextResponse.json({ qa })
   }
+  // Fetch course metadata (title/code) for prompt context
+  const { data: courseData } = await supabaseAdmin
+    .from('courses')
+    .select('course_title, course_code')
+    .eq('id', course_id)
+    .single()
 
-  // 3. Search course material via Claude
-const { data: courseData } = await supabaseAdmin
-  .from('courses')
-  .select('course_title, course_code, material_text')
-  .eq('id', course_id)
-  .single() as { data: { course_title: string, course_code: string, material_text: string } | null }
+  // Search relevant chunks using full text search
+const { data: chunks } = await supabaseAdmin
+  .from('course_material_chunks')
+  .select('chunk_text')
+  .eq('course_id', course_id)
+  .textSearch('search_vector', question.split(' ').slice(0, 6).join(' | '))
+  .limit(4)
 
-if (!courseData) return NextResponse.json({ error: 'Course not found' }, { status: 404 })
-
-  
-// Build prompt — use material text if available
-const materialContext = courseData?.material_text
-  ? `Here is the course material to answer from:\n\n${courseData.material_text.slice(0, 12000)}\n\n`
+const materialContext = chunks && chunks.length > 0
+  ? `Relevant course material sections:\n\n${chunks.map(c => c.chunk_text).join('\n\n---\n\n')}`
   : ''
 
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 const prompt = `You are a NOUN (National Open University of Nigeria) academic assistant.
-Course: ${courseData.course_title} (${courseData.course_code})
+Course: ${courseData?.course_title || 'Unknown Course'} (${courseData?.course_code || ''})
 
 ${materialContext}
 Using ONLY the course material above (if provided), answer the following TMA question accurately.

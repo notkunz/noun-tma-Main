@@ -1,48 +1,66 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+// pdf-parse may not have a static default export in some setups, import dynamically
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+const CHUNK_SIZE = 3000 // characters per chunk
+const OVERLAP = 200    // overlap between chunks so answers aren't cut off
+
+function chunkText(text: string): string[] {
+  const chunks: string[] = []
+  let start = 0
+  while (start < text.length) {
+    const end = start + CHUNK_SIZE
+    chunks.push(text.slice(start, end))
+    start = end - OVERLAP
+  }
+  return chunks
+}
+
 export async function POST(req: Request) {
   const { course_id } = await req.json()
 
-  // Get course material URL
   const { data: course } = await supabaseAdmin
     .from('courses')
-    .select('material_url, course_code, course_title')
+    .select('material_url, course_code')
     .eq('id', course_id)
-    .single() as { data: { material_url: string, course_code: string, course_title: string } | null }
+    .single() as { data: any }
 
   if (!course?.material_url) {
-    return NextResponse.json({ error: 'No material uploaded for this course' }, { status: 400 })
+    return NextResponse.json({ error: 'No material uploaded' }, { status: 400 })
   }
 
-  // Download the PDF from Supabase Storage
+  // Download and extract PDF text
   const response = await fetch(course.material_url)
-  const arrayBuffer = await response.arrayBuffer()
-  const buffer = Buffer.from(arrayBuffer)
-
-  // Extract text from PDF
-  const pdfLib = await import('pdf-parse')
-  const pdf = (pdfLib as any).default ?? pdfLib
+  const buffer = Buffer.from(await response.arrayBuffer())
+  const pdfModule = (await import('pdf-parse')) as any
+  const pdf = pdfModule.default ?? pdfModule
   const pdfData = await pdf(buffer)
-  const extractedText = pdfData.text
+  const chunks = chunkText(pdfData.text)
 
-  // Store extracted text in DB
+  // Delete old chunks first
+  await supabaseAdmin
+    .from('course_material_chunks')
+    .delete()
+    .eq('course_id', course_id)
+
+  // Insert new chunks
+  await supabaseAdmin.from('course_material_chunks').insert(
+    chunks.map((chunk, i) => ({
+      course_id,
+      chunk_index: i,
+      chunk_text: chunk
+    }))
+  )
+
   await supabaseAdmin
     .from('courses')
-    .update({
-      material_text: extractedText,
-      material_indexed: true
-    })
+    .update({ material_indexed: true })
     .eq('id', course_id)
 
-  return NextResponse.json({
-    success: true,
-    pages: pdfData.numpages,
-    characters: extractedText.length
-  })
+  return NextResponse.json({ success: true, chunks: chunks.length, pages: pdfData.numpages })
 }
