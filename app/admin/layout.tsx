@@ -22,6 +22,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             { label: '👥 Users', href: '/admin/users' },
             { label: '🏦 Question Bank', href: '/admin/question-bank' },
             { label: '📝 Sessions', href: '/admin/sessions' },
+            { label: '📊 Analytics', href: '/admin/analytics' },
           ].map(link => (
             <a key={link.href} href={link.href}
               className="text-sm text-gray-300 hover:bg-gray-700 px-3 py-2 rounded-lg transition">
