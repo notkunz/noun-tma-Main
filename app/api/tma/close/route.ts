@@ -41,13 +41,12 @@ export async function POST(req: Request) {
     if (toSave.length > 0) {
       // Avoid duplicates — check if question already exists in bank
       for (const q of toSave) {
-        const { data: existing } = await supabaseAdmin
-          .from('question_bank')
-          .select('id')
-          .eq('course_id', q.course_id)
-          .ilike('question_text', `%${q.question_text.slice(0, 80)}%`)
-          .single()
-
+const { data: existing } = await supabaseAdmin
+  .from('question_bank')
+  .select('id, times_asked')
+  .eq('course_id', q.course_id)
+  .ilike('question_text', `%${q.question_text.slice(0, 80)}%`)
+  .single() as { data: { id: string, times_asked: number } | null }
         if (!existing) {
           await supabaseAdmin.from('question_bank').insert({
             course_id: q.course_id,
