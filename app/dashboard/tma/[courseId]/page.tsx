@@ -345,8 +345,9 @@ if (newCount >= 10) setShowScoreModal(true)
             <p className="text-5xl mb-4">🎉</p>
             <h3 className="text-xl font-bold text-gray-800 mb-2">TMA Complete!</h3>
             <p className="text-gray-500 text-sm mb-6">
-              You've answered all 10 questions. What was your final TMA score?
-            </p>
+  You answered {session.question_count} question{session.question_count !== 1 ? 's' : ''}. 
+  What was your final TMA score?
+</p>
             <input
               type="text"
               placeholder="e.g. 8/10 or 10/10"

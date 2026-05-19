@@ -8,29 +8,51 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
   const [wallet, setWallet] = useState<number>(0)
+const [userId, setUserId] = useState<string | null>(null)
 
-  useEffect(() => {
-    const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return router.push('/login')
+useEffect(() => {
+  const load = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return router.push('/login')
 
-      const { data: profile } = await supabase
-        .from('users')
-        .select('full_name')
-        .eq('auth_id', user.id)
-        .single()
+    const { data: profile } = await supabase
+      .from('users')
+      .select('id, full_name')
+      .eq('auth_id', user.id)
+      .single() as { data: any }
 
-      const { data: walletData } = await supabase
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', user.id)
-        .single()
+    setUser(profile)
+    setUserId(profile?.id)
 
-      setUser(profile)
-      setWallet(walletData?.balance || 0)
-    }
-    load()
-  }, [])
+    const { data: walletData } = await supabase
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', profile?.id)
+      .single() as { data: any }
+
+    setWallet(walletData?.balance || 0)
+  }
+  load()
+}, [])
+
+// Live wallet subscription
+useEffect(() => {
+  if (!userId) return
+
+  const channel = supabase
+    .channel('wallet-changes')
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'wallets',
+      filter: `user_id=eq.${userId}`
+    }, (payload: any) => {
+      setWallet(payload.new.balance)
+    })
+    .subscribe()
+
+  return () => { supabase.removeChannel(channel) }
+}, [userId])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
