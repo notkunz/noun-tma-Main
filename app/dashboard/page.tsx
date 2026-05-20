@@ -21,13 +21,21 @@ export default function DashboardHome() {
         .single()
       setProfile(profileData)
 
-      const { data: sessions } = await supabase
-        .from('tma_sessions')
-        .select('*, courses(course_code, course_title)')
-        .eq('user_id', profileData.id)
-        .order('started_at', { ascending: false })
-        .limit(5)
-      setRecentSessions(sessions || [])
+const { data: sessions } = await supabase
+  .from('tma_sessions')
+  .select('*, courses(course_code, course_title)')
+  .eq('user_id', profileData.id)
+  .order('started_at', { ascending: false })
+
+// Keep only the most recent session per course
+const seen = new Set()
+const uniqueSessions = (sessions || []).filter((s: any) => {
+  if (seen.has(s.course_id)) return false
+  seen.add(s.course_id)
+  return true
+}).slice(0, 5)
+
+setRecentSessions(uniqueSessions)
     }
     load()
   }, [])

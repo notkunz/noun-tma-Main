@@ -1,11 +1,11 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 
 const AMOUNTS = [500, 1000, 2000, 5000]
 
-export default function WalletPage() {
+function WalletContent() {
   const supabase = createClient()
   const searchParams = useSearchParams()
   const [balance, setBalance] = useState(0)
@@ -17,7 +17,6 @@ export default function WalletPage() {
 
   useEffect(() => {
     loadWallet()
-    // Auto-verify if redirected back from payment
     const verify = searchParams.get('verify')
     const reference = searchParams.get('reference') || searchParams.get('transaction_id')
     if (verify && reference) handleVerify(verify, reference)
@@ -28,11 +27,13 @@ export default function WalletPage() {
     if (!user) return
 
     const { data: profile } = await supabase
-      .from('users').select('id').eq('auth_id', user.id).single()
+      .from('users').select('id').eq('auth_id', user.id).single() as { data: { id: string } | null }
+
+    if (!profile) return
 
     const { data: w } = await supabase
       .from('wallets').select('balance').eq('user_id', profile.id).single()
-    setBalance(w?.balance || 0)
+    setBalance((w as any)?.balance || 0)
 
     const { data: t } = await supabase
       .from('transactions').select('*')
@@ -77,18 +78,15 @@ export default function WalletPage() {
         </div>
       )}
 
-      {/* Balance Card */}
       <div className="bg-green-700 text-white rounded-2xl p-6 mb-6">
         <p className="text-green-200 text-sm">Available Balance</p>
         <p className="text-4xl font-bold mt-1">₦{balance.toLocaleString()}</p>
         <p className="text-green-300 text-xs mt-2">Each TMA session costs ₦200 – ₦300</p>
       </div>
 
-      {/* Top Up Section */}
       <div className="bg-white rounded-xl border shadow-sm p-6 mb-6">
         <h3 className="font-bold text-gray-700 mb-4">Top Up Wallet</h3>
 
-        {/* Quick Amount Buttons */}
         <div className="flex gap-3 mb-4 flex-wrap">
           {AMOUNTS.map(a => (
             <button key={a}
@@ -103,7 +101,6 @@ export default function WalletPage() {
           ))}
         </div>
 
-        {/* Custom Amount */}
         <input
           type="number"
           placeholder="Or enter custom amount"
@@ -112,7 +109,6 @@ export default function WalletPage() {
           className="w-full border rounded-lg p-3 text-sm mb-4"
         />
 
-        {/* Provider Selection */}
         <div className="flex gap-3 mb-4">
           {(['paystack', 'flutterwave'] as const).map(p => (
             <button key={p}
@@ -133,7 +129,6 @@ export default function WalletPage() {
         </button>
       </div>
 
-      {/* Transaction History */}
       <div className="bg-white rounded-xl border shadow-sm p-6">
         <h3 className="font-bold text-gray-700 mb-4">Transaction History</h3>
         {transactions.length === 0 ? (
@@ -162,5 +157,13 @@ export default function WalletPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function WalletPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-gray-400">Loading wallet...</div>}>
+      <WalletContent />
+    </Suspense>
   )
 }

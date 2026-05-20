@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import Groq from 'groq-sdk'
 import { NextResponse } from 'next/server'
+
+// Initialize Groq client once to avoid using it before declaration
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! })
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,34 +31,65 @@ export async function POST(req: Request) {
 
     const questionNumber = session.question_count + 1
 
-    // 2. Check question bank first
-    const searchQuery = question.split(' ').filter((w: string) => w.length > 3).slice(0, 6).join(' | ')
-    
-    let bankHit = null
-    if (searchQuery) {
-      const { data } = await supabaseAdmin
-        .from('question_bank')
-        .select('*')
-        .eq('course_id', course_id)
-        .ilike('question_text', `%${question.slice(0, 50)}%`)
-        .limit(1)
-        .single() as { data: any }
-      bankHit = data
+// 2. Smart question bank check using AI similarity
+const { data: bankEntries } = await supabaseAdmin
+  .from('question_bank')
+  .select('id, question_text, answer_text, times_asked')
+  .eq('course_id', course_id)
+  .limit(50) as { data: any[] | null }
+
+let bankHit = null
+
+if (bankEntries && bankEntries.length > 0) {
+  // Build a list of bank questions to send to AI
+  const bankList = bankEntries
+    .map((e, i) => `[${i}] ${e.question_text}`)
+    .join('\n')
+
+  const matchResult = await groq.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    messages: [{
+      role: 'user',
+      content: `You are a question matcher. A student asked this question:
+"${question}"
+
+Here are questions already in the question bank:
+${bankList}
+
+If any question in the bank is asking the SAME thing (even if worded differently), reply with ONLY the number in brackets like: MATCH:3
+If none match, reply with ONLY: NO_MATCH
+Do not explain anything.`
+    }],
+    max_tokens: 10
+  })
+
+  const matchResponse = matchResult.choices[0]?.message?.content?.trim() || ''
+
+  if (matchResponse.startsWith('MATCH:')) {
+    const index = parseInt(matchResponse.replace('MATCH:', '').trim())
+    if (!isNaN(index) && bankEntries[index]) {
+      bankHit = bankEntries[index]
     }
+  }
+}
 
-    if (bankHit) {
-      await supabaseAdmin
-        .from('question_bank')
-        .update({ times_asked: (bankHit.times_asked || 0) + 1 })
-        .eq('id', bankHit.id)
+if (bankHit) {
+  await supabaseAdmin
+    .from('question_bank')
+    .update({ times_asked: (bankHit.times_asked || 0) + 1 })
+    .eq('id', bankHit.id)
 
-      const qa = await saveQA(session_id, session.user_id, course_id, question, bankHit.answer_text, 'question_bank', questionNumber)
-      await incrementSession(session_id, questionNumber)
-      return NextResponse.json({ qa })
-    }
+  const qa = await saveQA(
+    session_id, session.user_id, course_id,
+    question, bankHit.answer_text,
+    'question_bank', questionNumber
+  )
+  await incrementSession(session_id, questionNumber)
+  return NextResponse.json({ qa })
+}
 
-    // 3. Get course data
-    const { data: courseData } = await supabaseAdmin
+      // 3. Get course data
+      const { data: courseData } = await supabaseAdmin
       .from('courses')
       .select('course_title, course_code, material_text')
       .eq('id', course_id)
@@ -78,9 +112,6 @@ export async function POST(req: Request) {
     }
 
     // 5. Call Gemini
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-
     const prompt = `You are an academic assistant for NOUN (National Open University of Nigeria).
 Course: ${courseData.course_title} (${courseData.course_code})
 
@@ -90,8 +121,12 @@ If the answer is absolutely not found anywhere, respond with exactly: ANSWER_NOT
 
 Question: ${question}`
 
-    const result = await model.generateContent(prompt)
-    const answer = result.response.text()
+const result = await groq.chat.completions.create({
+  model: 'llama-3.3-70b-versatile',
+  messages: [{ role: 'user', content: prompt }],
+  max_tokens: 1024
+})
+const answer = result.choices[0]?.message?.content || ''
 
     if (!answer || answer.trim() === '') {
       return NextResponse.json({ error: 'AI returned empty response. Please try again.' }, { status: 500 })

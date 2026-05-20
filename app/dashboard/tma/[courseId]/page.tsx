@@ -21,43 +21,45 @@ export default function TMAPage() {
   const [closing, setClosing] = useState(false)
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [internetPending, setInternetPending] = useState<{questionId: string, question: string} | null>(null)
-const [internetLoading, setInternetLoading] = useState(false)
+  const [internetLoading, setInternetLoading] = useState(false)
 
   useEffect(() => { loadCourse() }, [])
 
-  const loadCourse = async () => {
-    const { data } = await supabase
-      .from('courses')
-      .select('*')
-      .eq('id', courseId)
-      .single()
-    setCourse(data)
+const loadCourse = async () => {
+  const { data: courseData } = await supabase
+    .from('courses')
+    .select('*')
+    .eq('id', courseId)
+    .single()
+  setCourse(courseData)
 
-    // Check if there's already an active session for this course
-const { data: { user } } = await supabase.auth.getUser()
-if (!user) return
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
 
-const { data: profile } = await supabase
-  .from('users')
-  .select('id')
-  .eq('auth_id', user.id)
-  .single() as { data: { id: string } | null }
+  const { data: profile } = await supabase
+    .from('users')
+    .select('id')
+    .eq('auth_id', user.id)
+    .single() as { data: { id: string } | null }
 
-if (!profile) return
+  if (!profile) return
 
-const { data: existing } = await supabase
-  .from('tma_sessions')
-  .select('*')
-  .eq('user_id', profile.id)
-  .eq('course_id', courseId)
-  .eq('status', 'active')
-  .single()
+  // Check for ANY active session for this course — resumes on refresh
+  const { data: existing } = await supabase
+    .from('tma_sessions')
+    .select('*')
+    .eq('user_id', profile.id)
+    .eq('course_id', courseId)
+    .eq('status', 'active')
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .single() as { data: any }
 
-    if (existing) {
-      setSession(existing)
-      loadQuestions(existing.id)
-    }
+  if (existing) {
+    setSession(existing)
+    loadQuestions(existing.id)
   }
+}
 
   const loadQuestions = async (sessionId: string) => {
     const { data } = await supabase
@@ -68,20 +70,50 @@ const { data: existing } = await supabase
     setQuestions(data || [])
   }
 
-  const startSession = async () => {
-    setStarting(true)
-    setError('')
-    const res = await fetch('/api/wallet/deduct', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ course_id: courseId })
-    })
-    const data = await res.json()
-    setStarting(false)
+const startSession = async () => {
+  setStarting(true)
+  setError('')
 
-    if (data.error) return setError(data.error)
-    setSession({ id: data.session_id, question_count: 0 })
+  // Check if active session already exists — resume it for free
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('id')
+    .eq('auth_id', user.id)
+    .single() as { data: { id: string } | null }
+
+  if (profile) {
+    const { data: existing } = await supabase
+      .from('tma_sessions')
+      .select('*')
+      .eq('user_id', profile.id)
+      .eq('course_id', courseId)
+      .eq('status', 'active')
+      .single() as { data: any }
+
+    if (existing) {
+      // Resume existing session — no charge
+      setSession(existing)
+      loadQuestions(existing.id)
+      setStarting(false)
+      return
+    }
   }
+
+  // No existing session — charge wallet and create new one
+  const res = await fetch('/api/wallet/deduct', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ course_id: courseId })
+  })
+  const data = await res.json()
+  setStarting(false)
+
+  if (data.error) return setError(data.error)
+  setSession({ id: data.session_id, question_count: 0 })
+}
 
   const askQuestion = async () => {
     if (!input.trim() || loading) return

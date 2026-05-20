@@ -23,7 +23,13 @@ if (!profile) return
         .eq('user_id', profile.id)
         .order('started_at', { ascending: false })
 
-      setSessions(data || [])
+      const seen = new Set()
+const unique = (data || []).filter((s: any) => {
+  if (seen.has(s.course_id)) return false
+  seen.add(s.course_id)
+  return true
+})
+setSessions(unique)
       setLoading(false)
     }
     load()
