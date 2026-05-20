@@ -12,7 +12,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { session_id, course_id, question } = await req.json()
+    const { session_id, course_id, question, options } = await req.json()
 
     if (!question || question.trim().length < 3) {
       return NextResponse.json({ error: 'Question is too short.' }, { status: 400 })
@@ -101,37 +101,76 @@ if (!courseData) return NextResponse.json({ error: 'Course not found.' }, { stat
 // Check shared chunks first, then course-specific chunks
 let materialContext = ''
 
-const { data: sharedChunks } = await supabaseAdmin
-  .from('shared_material_chunks')
-  .select('chunk_text')
-  .eq('course_code', courseData.course_code)
-  .limit(3) as { data: any[] | null }
+// Build search keywords from question — remove common words
+const keywords = question
+  .replace(/[^a-zA-Z\s]/g, '')
+  .split(' ')
+  .filter((w: string) => w.length > 3)
+  .slice(0, 5)
+  .join(' | ')
 
-if (sharedChunks && sharedChunks.length > 0) {
-  // Use shared material
-  materialContext = `Course material:\n\n${sharedChunks.map(c => c.chunk_text).join('\n\n---\n\n')}`
-} else {
-  // Fall back to course-specific chunks
-  const { data: chunks } = await supabaseAdmin
-    .from('course_material_chunks')
+// Search shared chunks using full text search
+let foundChunks: any[] = []
+
+if (keywords) {
+  const { data: searchedShared } = await supabaseAdmin
+    .from('shared_material_chunks')
     .select('chunk_text')
-    .eq('course_id', course_id)
-    .limit(3) as { data: any[] | null }
+    .eq('course_code', courseData.course_code)
+    .textSearch('search_vector', keywords)
+    .limit(4) as { data: any[] | null }
 
-  if (chunks && chunks.length > 0) {
-    materialContext = `Course material:\n\n${chunks.map(c => c.chunk_text).join('\n\n---\n\n')}`
-  } else if (courseData.material_text) {
-    materialContext = `Course material:\n\n${courseData.material_text.slice(0, 8000)}`
+  if (searchedShared && searchedShared.length > 0) {
+    foundChunks = searchedShared
   }
 }
 
-    // 5. Call Gemini
-    const prompt = `You are an academic assistant for NOUN (National Open University of Nigeria).
+// If text search found nothing, fall back to first chunks
+if (foundChunks.length === 0) {
+  const { data: fallbackShared } = await supabaseAdmin
+    .from('shared_material_chunks')
+    .select('chunk_text')
+    .eq('course_code', courseData.course_code)
+    .limit(6) as { data: any[] | null }
+
+  if (fallbackShared && fallbackShared.length > 0) {
+    foundChunks = fallbackShared
+  } else {
+    // Try course-specific chunks
+    const { data: specificChunks } = await supabaseAdmin
+      .from('course_material_chunks')
+      .select('chunk_text')
+      .eq('course_id', course_id)
+      .limit(6) as { data: any[] | null }
+
+    if (specificChunks && specificChunks.length > 0) {
+      foundChunks = specificChunks
+    }
+  }
+}
+
+if (foundChunks.length > 0) {
+  materialContext = `Course material:\n\n${foundChunks.map(c => c.chunk_text).join('\n\n---\n\n')}`
+} else if (courseData.material_text) {
+  materialContext = `Course material:\n\n${courseData.material_text.slice(0, 10000)}`
+}
+
+    // 5. Call Grok
+const optionsText = options && options.length > 0
+        ? `\n\nMultiple choice options:\n${options.map((o: string, i: number) => `${String.fromCharCode(65 + i)}. ${o}`).join('\n')}\n\nYou MUST pick one of these options. State the letter and text clearly.`
+        : ''
+
+      const hasMaterial = materialContext.length > 0
+
+    const prompt =`You are an academic assistant for NOUN (National Open University of Nigeria).
 Course: ${courseData.course_title} (${courseData.course_code})
 
-${materialContext ? materialContext + '\n\n' : ''}Using the course material above (if provided), answer this TMA question accurately and concisely.
-For math questions, show full step-by-step working.
-If the answer is absolutely not found anywhere, respond with exactly: ANSWER_NOT_FOUND
+${materialContext ? materialContext + '\n\n' : ''}RULES:
+1. Read the course material carefully
+2. Answer ONLY from the material if provided
+3. Be concise and accurate
+4. For math questions show full step-by-step working
+5. If the answer is not in the material, respond with exactly: ANSWER_NOT_FOUND
 
 Question: ${question}`
 

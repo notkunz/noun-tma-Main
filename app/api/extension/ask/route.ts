@@ -135,27 +135,59 @@ export async function POST(req: Request) {
       let materialContext = ''
       const materialCode = courseData.shared_material_code || courseData.course_code
 
-      const { data: sharedChunks } = await supabaseAdmin
-        .from('shared_material_chunks')
-        .select('chunk_text')
-        .eq('course_code', materialCode)
-        .limit(4) as { data: any[] | null }
+// Build search keywords from question — remove common words
+const keywords = question
+  .replace(/[^a-zA-Z\s]/g, '')
+  .split(' ')
+  .filter((w: string) => w.length > 3)
+  .slice(0, 5)
+  .join(' | ')
 
-      if (sharedChunks && sharedChunks.length > 0) {
-        materialContext = `Course material:\n\n${sharedChunks.map(c => c.chunk_text).join('\n\n---\n\n')}`
-      } else {
-        const { data: chunks } = await supabaseAdmin
-          .from('course_material_chunks')
-          .select('chunk_text')
-          .eq('course_id', course_id)
-          .limit(4) as { data: any[] | null }
+// Search shared chunks using full text search
+let foundChunks: any[] = []
 
-        if (chunks && chunks.length > 0) {
-          materialContext = `Course material:\n\n${chunks.map(c => c.chunk_text).join('\n\n---\n\n')}`
-        } else if (courseData.material_text) {
-          materialContext = `Course material:\n\n${courseData.material_text.slice(0, 8000)}`
-        }
-      }
+if (keywords) {
+  const { data: searchedShared } = await supabaseAdmin
+    .from('shared_material_chunks')
+    .select('chunk_text')
+    .eq('course_code', materialCode)
+    .textSearch('search_vector', keywords)
+    .limit(4) as { data: any[] | null }
+
+  if (searchedShared && searchedShared.length > 0) {
+    foundChunks = searchedShared
+  }
+}
+
+// If text search found nothing, fall back to first chunks
+if (foundChunks.length === 0) {
+  const { data: fallbackShared } = await supabaseAdmin
+    .from('shared_material_chunks')
+    .select('chunk_text')
+    .eq('course_code', materialCode)
+    .limit(6) as { data: any[] | null }
+
+  if (fallbackShared && fallbackShared.length > 0) {
+    foundChunks = fallbackShared
+  } else {
+    // Try course-specific chunks
+    const { data: specificChunks } = await supabaseAdmin
+      .from('course_material_chunks')
+      .select('chunk_text')
+      .eq('course_id', course_id)
+      .limit(6) as { data: any[] | null }
+
+    if (specificChunks && specificChunks.length > 0) {
+      foundChunks = specificChunks
+    }
+  }
+}
+
+if (foundChunks.length > 0) {
+  materialContext = `Course material:\n\n${foundChunks.map(c => c.chunk_text).join('\n\n---\n\n')}`
+} else if (courseData.material_text) {
+  materialContext = `Course material:\n\n${courseData.material_text.slice(0, 10000)}`
+}
 
       const optionsText = options && options.length > 0
         ? `\n\nMultiple choice options:\n${options.map((o: string, i: number) => `${String.fromCharCode(65 + i)}. ${o}`).join('\n')}\n\nYou MUST pick one of these options. State the letter and text clearly.`
@@ -167,12 +199,21 @@ export async function POST(req: Request) {
         model: 'llama-3.3-70b-versatile',
         messages: [{
           role: 'user',
-          content: `You are a NOUN academic assistant for ${courseData.course_title} (${courseData.course_code}).
-${hasMaterial ? materialContext + '\n\n' : ''}IMPORTANT: ${hasMaterial ? 'Answer ONLY using the course material above. Do not use outside knowledge.' : 'No course material available. Use your academic knowledge.'}
-${optionsText}
-If the answer cannot be found${hasMaterial ? ' in the material' : ''}, respond with exactly: ANSWER_NOT_FOUND
+          content: `You are a NOUN TMA assistant. A student has a multiple choice question.
+${hasMaterial ? `Here is the relevant course material:\n\n${materialContext}\n\n` : ''}
+The question is:
+"${question}"
+${optionsText ? `\nOptions:\n${optionsText}` : ''}
 
-Question: ${question}`
+${hasMaterial
+  ? `RULES:
+1. Read the course material carefully
+2. Find the exact answer in the material
+3. Match it to one of the options above
+4. Reply with ONLY the letter and option text e.g: "B. Success"
+5. If you cannot find it in the material at all, reply with exactly: ANSWER_NOT_FOUND`
+  : `Reply with the correct answer from the options.`
+}`
         }],
         max_tokens: 1024
       })
