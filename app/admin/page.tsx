@@ -10,23 +10,10 @@ export default function AdminOverview() {
 
   useEffect(() => {
     const load = async () => {
-      const [users, sessions, courses, bank, revenue] = await Promise.all([
-        supabase.from('users').select('id', { count: 'exact' }),
-        supabase.from('tma_sessions').select('id', { count: 'exact' }),
-        supabase.from('courses').select('id', { count: 'exact' }),
-        supabase.from('question_bank').select('id', { count: 'exact' }),
-        supabase.from('transactions').select('amount').eq('type', 'credit').eq('status', 'success')
-      ])
-
-      const totalRevenue = revenue.data?.reduce((sum, t) => sum + t.amount, 0) || 0
-
-      setStats({
-        users: users.count || 0,
-        sessions: sessions.count || 0,
-        courses: courses.count || 0,
-        bankEntries: bank.count || 0,
-        revenue: totalRevenue
-      })
+      // Use separate counts via admin API route
+      const res = await fetch('/api/admin/stats')
+      const data = await res.json()
+      if (!data.error) setStats(data)
     }
     load()
   }, [])
