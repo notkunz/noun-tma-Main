@@ -111,60 +111,79 @@ export default function SharedMaterialsPage() {
         {materials.length === 0 && (
           <p className="text-gray-500 text-sm">No shared materials yet.</p>
         )}
-        {materials.map(m => (
-          <div key={m.id} className="bg-gray-800 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-bold text-lg">{m.course_code}</p>
-                <p className={`text-xs mt-1 ${m.material_indexed ? 'text-green-400' : 'text-yellow-400'}`}>
-                  {m.material_indexed ? '✅ Indexed & Ready' : '⚠️ Not indexed yet'}
-                </p>
-                {m.material_url && (
-                  <a href={m.material_url} target="_blank"
-                    className="text-xs text-blue-400 hover:underline mt-0.5 block">
-                    View PDF
-                  </a>
-                )}
-              </div>
-              <div className="flex flex-col gap-2">
-                {m.material_url && !m.material_indexed && (
-                  <button onClick={() => indexMaterial(m.course_code)}
-                    className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-semibold">
-                    ⚡ Index Now
-                  </button>
-                )}
-                {m.material_url && m.material_indexed && (
-                  <button onClick={() => {
-                    supabase.from('shared_materials')
-                      .update({ material_indexed: false })
-                      .eq('course_code', m.course_code)
-                      .then(() => loadMaterials())
-                    indexMaterial(m.course_code)
-                  }}
-                    className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold">
-                    🔄 Re-index
-                  </button>
-                )}
-                {m.material_url && (
-                  <label className="cursor-pointer text-xs bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold text-center">
-                    📤 Replace PDF
-                    <input type="file" accept=".pdf" className="hidden"
-                      onChange={e => {
-                        const file = e.target.files?.[0]
-                        if (file) uploadMaterial(m.course_code, file)
-                      }} />
-                  </label>
-                )}
-                {m.material_url && (
-                  <button onClick={() => deleteMaterial(m.course_code, m.material_url)}
-                    className="text-xs bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold">
-                    🗑️ Delete
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
+{materials.map(m => (
+  <div key={m.id} className="bg-gray-800 rounded-xl p-4">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="font-bold text-xl">{m.course_code}</p>
+        <div className="flex items-center gap-2 mt-1">
+          {m.material_url ? (
+            <span className="text-xs bg-blue-800 text-blue-300 px-2 py-0.5 rounded-full">
+              📄 PDF uploaded
+            </span>
+          ) : (
+            <span className="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">
+              No PDF yet
+            </span>
+          )}
+          {m.material_indexed ? (
+            <span className="text-xs bg-green-800 text-green-300 px-2 py-0.5 rounded-full">
+              ✅ Indexed & Active
+            </span>
+          ) : (
+            <span className="text-xs bg-yellow-800 text-yellow-300 px-2 py-0.5 rounded-full">
+              ⚠️ Not indexed
+            </span>
+          )}
+        </div>
+        {m.material_url && (
+          <a href={m.material_url} target="_blank"
+            className="text-xs text-blue-400 hover:underline mt-1 block">
+            View PDF ↗
+          </a>
+        )}
+        <p className="text-gray-500 text-xs mt-1">
+          All departments with {m.course_code} use this material automatically
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2 ml-4 shrink-0 min-w-32">
+        {/* Upload / Replace */}
+        <label className="cursor-pointer text-center text-xs px-4 py-2 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white">
+          {uploading === m.course_code ? 'Uploading...' : m.material_url ? '📤 Replace PDF' : '📤 Upload PDF'}
+          <input type="file" accept=".pdf" className="hidden"
+            disabled={uploading === m.course_code}
+            onChange={e => {
+              const file = e.target.files?.[0]
+              if (file) uploadMaterial(m.course_code, file)
+            }} />
+        </label>
+
+        {/* Index button — always show if PDF exists */}
+        {m.material_url && (
+          <button
+            onClick={() => indexMaterial(m.course_code)}
+            className={`text-xs px-4 py-2 rounded-lg font-semibold text-white ${
+              m.material_indexed
+                ? 'bg-gray-600 hover:bg-gray-500'
+                : 'bg-yellow-500 hover:bg-yellow-600'
+            }`}>
+            {m.material_indexed ? '🔄 Re-index' : '⚡ Index Now'}
+          </button>
+        )}
+
+        {/* Delete */}
+        {m.material_url && (
+          <button
+            onClick={() => deleteMaterial(m.course_code, m.material_url)}
+            className="text-xs bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold">
+            🗑️ Delete PDF
+          </button>
+        )}
+      </div>
+    </div>
+  </div>
+))}
       </div>
     </div>
   )
