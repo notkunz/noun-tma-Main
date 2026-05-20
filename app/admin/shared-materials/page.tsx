@@ -19,34 +19,25 @@ export default function SharedMaterialsPage() {
     setMaterials(data || [])
   }
 
-  const uploadMaterial = async (code: string, file: File) => {
-    setUploading(code)
-    const path = `shared/${code.replace(' ', '_')}/${file.name}`
+const uploadMaterial = async (code: string, file: File) => {
+  setUploading(code)
 
-    const { error } = await supabase.storage
-      .from('course-materials')
-      .upload(path, file, { upsert: true })
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('course_code', code.toUpperCase())
 
-    if (error) {
-      setUploading(null)
-      return setMessage('Upload error: ' + error.message)
-    }
+  const res = await fetch('/api/admin/upload-shared-material', {
+    method: 'POST',
+    body: formData
+  })
 
-    const { data: urlData } = supabase.storage
-      .from('course-materials')
-      .getPublicUrl(path)
+  const data = await res.json()
+  setUploading(null)
 
-    // Upsert — insert if new, update if exists
-    await supabase.from('shared_materials').upsert({
-      course_code: code.toUpperCase(),
-      material_url: urlData.publicUrl,
-      material_indexed: false
-    }, { onConflict: 'course_code' })
-
-    setUploading(null)
-    setMessage(`✅ PDF uploaded for ${code.toUpperCase()}`)
-    loadMaterials()
-  }
+  if (data.error) return setMessage('Upload error: ' + data.error)
+  setMessage(`✅ PDF uploaded for ${code.toUpperCase()}`)
+  loadMaterials()
+}
 
   const indexMaterial = async (code: string) => {
     setMessage('Indexing ' + code + '...')
