@@ -12,7 +12,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { session_id, course_id, question, options } = await req.json()
+    const { session_id, course_id, question } = await req.json()
 
     if (!question || question.trim().length < 3) {
       return NextResponse.json({ error: 'Question is too short.' }, { status: 400 })
@@ -156,13 +156,7 @@ if (foundChunks.length > 0) {
 }
 
     // 5. Call Grok
-const optionsText = options && options.length > 0
-        ? `\n\nMultiple choice options:\n${options.map((o: string, i: number) => `${String.fromCharCode(65 + i)}. ${o}`).join('\n')}\n\nYou MUST pick one of these options. State the letter and text clearly.`
-        : ''
-
-      const hasMaterial = materialContext.length > 0
-
-    const prompt =`You are an academic assistant for NOUN (National Open University of Nigeria).
+    const prompt = `You are an academic assistant for NOUN (National Open University of Nigeria).
 Course: ${courseData.course_title} (${courseData.course_code})
 
 ${materialContext ? materialContext + '\n\n' : ''}RULES:
