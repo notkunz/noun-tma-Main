@@ -31,60 +31,62 @@ export async function POST(req: Request) {
     const { data: { user }, error } = await supabaseAuth.auth.getUser(token)
     if (error || !user) return NextResponse.json({ error: 'Invalid session' }, { status: 401, headers: corsHeaders })
 
-    const { question, session_id, course_id, detected_course_code } = await req.json()
+    const { question, session_id, course_id, detected_course_code, options } = await req.json()
 
-// Validate session
-const { data: session } = await supabaseAdmin
-  .from('tma_sessions')
-  .select('*')
-  .eq('id', session_id)
-  .eq('status', 'active')
-  .single() as { data: any }
-
-if (!session) return NextResponse.json({ error: 'No active session found' }, { status: 400, headers: corsHeaders })
-if (session.question_count >= 10) return NextResponse.json({ error: 'TMA limit of 10 questions reached' }, { status: 400, headers: corsHeaders })
-
-// If extension detected a course code on the page, validate it matches the session
-if (detected_course_code) {
-  const { data: sessionCourse } = await supabaseAdmin
-    .from('courses')
-    .select('course_code')
-    .eq('id', session.course_id)
-    .single() as { data: any }
-
-  const sessionCode = sessionCourse?.course_code?.replace(/\s+/, '').toUpperCase()
-  const pageCode = detected_course_code.replace(/\s+/, '').toUpperCase()
-
-  if (sessionCode !== pageCode) {
-    // Check if student has an active session for the page's course
-    const { data: correctCourse } = await supabaseAdmin
-      .from('courses')
-      .select('id, course_title')
-      .ilike('course_code', `%${pageCode}%`)
-      .single() as { data: any }
-
-    const { data: correctSession } = await supabaseAdmin
+    // Validate session
+    const { data: session } = await supabaseAdmin
       .from('tma_sessions')
       .select('*')
-      .eq('user_id', session.user_id)
-      .eq('course_id', correctCourse?.id)
+      .eq('id', session_id)
       .eq('status', 'active')
       .single() as { data: any }
 
-    if (!correctSession) {
-      return NextResponse.json({
-        error: `Your active session is for ${sessionCode} but you're on ${pageCode}. Please start a ${pageCode} session on the app first.`
-      }, { status: 400, headers: corsHeaders })
+    if (!session) return NextResponse.json({ error: 'No active session found' }, { status: 400, headers: corsHeaders })
+    if (session.question_count >= 10) return NextResponse.json({ error: 'TMA limit of 10 questions reached' }, { status: 400, headers: corsHeaders })
+
+    // Validate course matches detected page course
+    if (detected_course_code) {
+      const { data: sessionCourse } = await supabaseAdmin
+        .from('courses')
+        .select('course_code')
+        .eq('id', session.course_id)
+        .single() as { data: any }
+
+      const sessionCode = sessionCourse?.course_code?.replace(/\s+/g, '').toUpperCase()
+      const pageCode = detected_course_code.replace(/\s+/g, '').toUpperCase()
+
+      if (sessionCode !== pageCode) {
+        const { data: correctCourse } = await supabaseAdmin
+          .from('courses')
+          .select('id, course_title')
+          .ilike('course_code', `%${pageCode}%`)
+          .limit(1)
+          .single() as { data: any }
+
+        const { data: correctSession } = await supabaseAdmin
+          .from('tma_sessions')
+          .select('*')
+          .eq('user_id', session.user_id)
+          .eq('course_id', correctCourse?.id)
+          .eq('status', 'active')
+          .single() as { data: any }
+
+        if (!correctSession) {
+          return NextResponse.json({
+            error: `You're on ${pageCode} but your active session is for ${sessionCode}. Start a ${pageCode} session on the app first.`
+          }, { status: 400, headers: corsHeaders })
+        }
+
+        session.id = correctSession.id
+        session.course_id = correctSession.course_id
+        session.question_count = correctSession.question_count
+        session.user_id = correctSession.user_id
+      }
     }
 
-    // Switch to the correct session automatically
-    session.id = correctSession.id
-    session.course_id = correctSession.course_id
-    session.question_count = correctSession.question_count
-  }
-}
     const questionNumber = session.question_count + 1
 
+    // Check question bank first
     const { data: bankEntries } = await supabaseAdmin
       .from('question_bank')
       .select('id, question_text, answer_text, times_asked')
@@ -113,27 +115,31 @@ if (detected_course_code) {
     let source = 'course_material'
 
     if (bankHit) {
+      // Answer from question bank
       answerText = bankHit.answer_text
       source = 'question_bank'
-      await supabaseAdmin.from('question_bank')
+      await supabaseAdmin
+        .from('question_bank')
         .update({ times_asked: (bankHit.times_asked || 0) + 1 })
         .eq('id', bankHit.id)
     } else {
+      // Get course data and material
       const { data: courseData } = await supabaseAdmin
         .from('courses')
-        .select('course_title, course_code, material_text')
+        .select('course_title, course_code, material_text, shared_material_code')
         .eq('id', course_id)
         .single() as { data: any }
 
       if (!courseData) return NextResponse.json({ error: 'Course not found.' }, { status: 404, headers: corsHeaders })
 
       let materialContext = ''
+      const materialCode = courseData.shared_material_code || courseData.course_code
 
       const { data: sharedChunks } = await supabaseAdmin
         .from('shared_material_chunks')
         .select('chunk_text')
-        .eq('course_code', courseData.course_code)
-        .limit(3) as { data: any[] | null }
+        .eq('course_code', materialCode)
+        .limit(4) as { data: any[] | null }
 
       if (sharedChunks && sharedChunks.length > 0) {
         materialContext = `Course material:\n\n${sharedChunks.map(c => c.chunk_text).join('\n\n---\n\n')}`
@@ -142,7 +148,7 @@ if (detected_course_code) {
           .from('course_material_chunks')
           .select('chunk_text')
           .eq('course_id', course_id)
-          .limit(3) as { data: any[] | null }
+          .limit(4) as { data: any[] | null }
 
         if (chunks && chunks.length > 0) {
           materialContext = `Course material:\n\n${chunks.map(c => c.chunk_text).join('\n\n---\n\n')}`
@@ -151,13 +157,20 @@ if (detected_course_code) {
         }
       }
 
+      const optionsText = options && options.length > 0
+        ? `\n\nMultiple choice options:\n${options.map((o: string, i: number) => `${String.fromCharCode(65 + i)}. ${o}`).join('\n')}\n\nYou MUST pick one of these options. State the letter and text clearly.`
+        : ''
+
+      const hasMaterial = materialContext.length > 0
+
       const result = await groq.chat.completions.create({
         model: 'llama-3.3-70b-versatile',
         messages: [{
           role: 'user',
-          content: `You are a NOUN academic assistant for ${courseData?.course_title} (${courseData?.course_code}).
-${materialContext ? materialContext + '\n\n' : ''}Answer this TMA question accurately. Show working for math.
-If truly not found respond: ANSWER_NOT_FOUND
+          content: `You are a NOUN academic assistant for ${courseData.course_title} (${courseData.course_code}).
+${hasMaterial ? materialContext + '\n\n' : ''}IMPORTANT: ${hasMaterial ? 'Answer ONLY using the course material above. Do not use outside knowledge.' : 'No course material available. Use your academic knowledge.'}
+${optionsText}
+If the answer cannot be found${hasMaterial ? ' in the material' : ''}, respond with exactly: ANSWER_NOT_FOUND
 
 Question: ${question}`
         }],
@@ -165,20 +178,25 @@ Question: ${question}`
       })
 
       answerText = result.choices[0]?.message?.content || 'Could not generate answer.'
-      if (answerText.trim() === 'ANSWER_NOT_FOUND') {
-        answerText = '⚠️ Answer not found in course material. Try internet search on the app.'
-      }
-    }
 
+      if (answerText.trim() === 'ANSWER_NOT_FOUND') {
+        answerText = '⚠️ Answer not found in course material.'
+      }
+    } // ← closes the else block
+
+    // Save Q&A to session
     const { data: profile } = await supabaseAdmin
-      .from('users').select('id').eq('auth_id', user.id).single() as { data: any }
+      .from('users')
+      .select('id')
+      .eq('auth_id', user.id)
+      .single() as { data: any }
 
     const { data: qa } = await supabaseAdmin
       .from('tma_questions')
       .insert({
-        session_id,
+        session_id: session.id,
         user_id: profile.id,
-        course_id,
+        course_id: session.course_id,
         question_text: question,
         answer_text: answerText,
         source,
@@ -190,7 +208,7 @@ Question: ${question}`
     await supabaseAdmin
       .from('tma_sessions')
       .update({ question_count: questionNumber })
-      .eq('id', session_id)
+      .eq('id', session.id)
 
     return NextResponse.json({ qa }, { headers: corsHeaders })
 
