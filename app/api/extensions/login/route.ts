@@ -1,0 +1,49 @@
+import { createClient } from '@supabase/supabase-js'
+import { NextResponse } from 'next/server'
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+export async function POST(req: Request) {
+  const { email, password } = await req.json()
+
+  const supabaseAuth = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  const { data, error } = await supabaseAuth.auth.signInWithPassword({ email, password })
+  if (error) return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+
+  const token = data.session?.access_token
+
+  const { data: profile } = await supabaseAdmin
+    .from('users')
+    .select('id, full_name, matric_number')
+    .eq('auth_id', data.user.id)
+    .single() as { data: any }
+
+  const { data: wallet } = await supabaseAdmin
+    .from('wallets')
+    .select('balance')
+    .eq('user_id', profile.id)
+    .single() as { data: any }
+
+  const { data: session } = await supabaseAdmin
+    .from('tma_sessions')
+    .select('*, courses(course_code)')
+    .eq('user_id', profile.id)
+    .eq('status', 'active')
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .single() as { data: any }
+
+  return NextResponse.json({
+    token,
+    user: profile,
+    wallet: wallet?.balance || 0,
+    session: session || null
+  })
+}

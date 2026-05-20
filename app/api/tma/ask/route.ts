@@ -89,27 +89,41 @@ if (bankHit) {
 }
 
       // 3. Get course data
-      const { data: courseData } = await supabaseAdmin
-      .from('courses')
-      .select('course_title, course_code, material_text')
-      .eq('id', course_id)
-      .single() as { data: any }
+// Get course data including course_code
+const { data: courseData } = await supabaseAdmin
+  .from('courses')
+  .select('course_title, course_code, material_text')
+  .eq('id', course_id)
+  .single() as { data: any }
 
-    if (!courseData) return NextResponse.json({ error: 'Course not found.' }, { status: 404 })
+if (!courseData) return NextResponse.json({ error: 'Course not found.' }, { status: 404 })
 
-    // 4. Search chunks if available
-    let materialContext = ''
-    const { data: chunks } = await supabaseAdmin
-      .from('course_material_chunks')
-      .select('chunk_text')
-      .eq('course_id', course_id)
-      .limit(3) as { data: any[] | null }
+// Check shared chunks first, then course-specific chunks
+let materialContext = ''
 
-    if (chunks && chunks.length > 0) {
-      materialContext = `Relevant course material:\n\n${chunks.map(c => c.chunk_text).join('\n\n---\n\n')}`
-    } else if (courseData.material_text) {
-      materialContext = `Course material:\n\n${courseData.material_text.slice(0, 8000)}`
-    }
+const { data: sharedChunks } = await supabaseAdmin
+  .from('shared_material_chunks')
+  .select('chunk_text')
+  .eq('course_code', courseData.course_code)
+  .limit(3) as { data: any[] | null }
+
+if (sharedChunks && sharedChunks.length > 0) {
+  // Use shared material
+  materialContext = `Course material:\n\n${sharedChunks.map(c => c.chunk_text).join('\n\n---\n\n')}`
+} else {
+  // Fall back to course-specific chunks
+  const { data: chunks } = await supabaseAdmin
+    .from('course_material_chunks')
+    .select('chunk_text')
+    .eq('course_id', course_id)
+    .limit(3) as { data: any[] | null }
+
+  if (chunks && chunks.length > 0) {
+    materialContext = `Course material:\n\n${chunks.map(c => c.chunk_text).join('\n\n---\n\n')}`
+  } else if (courseData.material_text) {
+    materialContext = `Course material:\n\n${courseData.material_text.slice(0, 8000)}`
+  }
+}
 
     // 5. Call Gemini
     const prompt = `You are an academic assistant for NOUN (National Open University of Nigeria).
