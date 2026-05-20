@@ -31,18 +31,58 @@ export async function POST(req: Request) {
     const { data: { user }, error } = await supabaseAuth.auth.getUser(token)
     if (error || !user) return NextResponse.json({ error: 'Invalid session' }, { status: 401, headers: corsHeaders })
 
-    const { question, session_id, course_id } = await req.json()
+    const { question, session_id, course_id, detected_course_code } = await req.json()
 
-    const { data: session } = await supabaseAdmin
+// Validate session
+const { data: session } = await supabaseAdmin
+  .from('tma_sessions')
+  .select('*')
+  .eq('id', session_id)
+  .eq('status', 'active')
+  .single() as { data: any }
+
+if (!session) return NextResponse.json({ error: 'No active session found' }, { status: 400, headers: corsHeaders })
+if (session.question_count >= 10) return NextResponse.json({ error: 'TMA limit of 10 questions reached' }, { status: 400, headers: corsHeaders })
+
+// If extension detected a course code on the page, validate it matches the session
+if (detected_course_code) {
+  const { data: sessionCourse } = await supabaseAdmin
+    .from('courses')
+    .select('course_code')
+    .eq('id', session.course_id)
+    .single() as { data: any }
+
+  const sessionCode = sessionCourse?.course_code?.replace(/\s+/, '').toUpperCase()
+  const pageCode = detected_course_code.replace(/\s+/, '').toUpperCase()
+
+  if (sessionCode !== pageCode) {
+    // Check if student has an active session for the page's course
+    const { data: correctCourse } = await supabaseAdmin
+      .from('courses')
+      .select('id, course_title')
+      .ilike('course_code', `%${pageCode}%`)
+      .single() as { data: any }
+
+    const { data: correctSession } = await supabaseAdmin
       .from('tma_sessions')
       .select('*')
-      .eq('id', session_id)
+      .eq('user_id', session.user_id)
+      .eq('course_id', correctCourse?.id)
       .eq('status', 'active')
       .single() as { data: any }
 
-    if (!session) return NextResponse.json({ error: 'No active session found' }, { status: 400, headers: corsHeaders })
-    if (session.question_count >= 10) return NextResponse.json({ error: 'TMA limit of 10 questions reached' }, { status: 400, headers: corsHeaders })
+    if (!correctSession) {
+      return NextResponse.json({
+        error: `Your active session is for ${sessionCode} but you're on ${pageCode}. Please start a ${pageCode} session on the app first.`
+      }, { status: 400, headers: corsHeaders })
+    }
 
+    // Switch to the correct session automatically
+    session.id = correctSession.id
+    session.course_id = correctSession.course_id
+    session.question_count = correctSession.question_count
+  }
+}
     const questionNumber = session.question_count + 1
 
     const { data: bankEntries } = await supabaseAdmin
