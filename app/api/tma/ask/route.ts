@@ -102,55 +102,58 @@ if (!courseData) return NextResponse.json({ error: 'Course not found.' }, { stat
 let materialContext = ''
 
 // Build search keywords from question — remove common words
-const keywords = question
-  .replace(/[^a-zA-Z\s]/g, '')
+// Extract key phrases from question for ILIKE search
+const questionWords = question
+  .replace(/[^a-zA-Z\s]/g, ' ')
   .split(' ')
-  .filter((w: string) => w.length > 3)
-  .slice(0, 5)
-  .join(' | ')
+  .filter((w: string) => w.length > 4)
+  .slice(0, 3)
 
-// Search shared chunks using full text search
 let foundChunks: any[] = []
 
-if (keywords) {
-  const { data: searchedShared } = await supabaseAdmin
+// Try ILIKE search for each keyword until we find matching chunks
+for (const word of questionWords) {
+  const { data: matched } = await supabaseAdmin
     .from('shared_material_chunks')
     .select('chunk_text')
-    .eq('course_code', courseData.course_code)
-    .textSearch('search_vector', keywords)
+    .eq('course_code', materialCode)
+    .ilike('chunk_text', `%${word}%`)
     .limit(4) as { data: any[] | null }
 
-  if (searchedShared && searchedShared.length > 0) {
-    foundChunks = searchedShared
+  if (matched && matched.length > 0) {
+    foundChunks = matched
+    break
   }
 }
 
-// If text search found nothing, fall back to first chunks
+// If no keyword matched, grab first 8 chunks as broad fallback
 if (foundChunks.length === 0) {
-  const { data: fallbackShared } = await supabaseAdmin
+  const { data: fallback } = await supabaseAdmin
+    .from('course_material_chunks')
+    .select('chunk_text')
+    .eq('course_id', course_id)
+    .limit(8) as { data: any[] | null }
+
+  if (fallback && fallback.length > 0) {
+    foundChunks = fallback
+  }
+}
+
+// Also try shared fallback
+if (foundChunks.length === 0) {
+  const { data: sharedFallback } = await supabaseAdmin
     .from('shared_material_chunks')
     .select('chunk_text')
-    .eq('course_code', courseData.course_code)
-    .limit(6) as { data: any[] | null }
+    .eq('course_code', materialCode)
+    .limit(8) as { data: any[] | null }
 
-  if (fallbackShared && fallbackShared.length > 0) {
-    foundChunks = fallbackShared
-  } else {
-    // Try course-specific chunks
-    const { data: specificChunks } = await supabaseAdmin
-      .from('course_material_chunks')
-      .select('chunk_text')
-      .eq('course_id', course_id)
-      .limit(6) as { data: any[] | null }
-
-    if (specificChunks && specificChunks.length > 0) {
-      foundChunks = specificChunks
-    }
+  if (sharedFallback && sharedFallback.length > 0) {
+    foundChunks = sharedFallback
   }
 }
 
 if (foundChunks.length > 0) {
-  materialContext = `Course material:\n\n${foundChunks.map(c => c.chunk_text).join('\n\n---\n\n')}`
+  materialContext = `Course material:\n\n${foundChunks.map((c: any) => c.chunk_text).join('\n\n---\n\n')}`
 } else if (courseData.material_text) {
   materialContext = `Course material:\n\n${courseData.material_text.slice(0, 10000)}`
 }
