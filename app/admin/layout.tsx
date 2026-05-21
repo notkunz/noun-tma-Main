@@ -21,7 +21,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             { label: '📖 Courses', href: '/admin/courses' },
             { label: '👥 Users', href: '/admin/users' },
             { label: '🏦 Question Bank', href: '/admin/question-bank' },
-            { label: '📝 Sessions', href: '' },
+            { label: '📝 Sessions', href: '/admin/sessions' },
             { label: '📊 Analytics', href: '/admin/analytics' },
             { label: '📚 Shared Materials', href: '/admin/shared-materials' },
 
