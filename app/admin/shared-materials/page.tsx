@@ -35,10 +35,12 @@ const uploadMaterial = async (code: string, file: File) => {
     .from('course-materials')
     .upload(path, file, { upsert: true })
 
+  console.log('Upload error details:', JSON.stringify(uploadError))
+
   if (uploadError) {
-    setUploading(null)
-    return setMessage('Upload error: ' + uploadError.message)
-  }
+  setUploading(null)
+  return setMessage('Upload error: ' + uploadError.message + ' | ' + JSON.stringify(uploadError))
+}
 
   const { data: urlData } = supabase.storage
     .from('course-materials')
