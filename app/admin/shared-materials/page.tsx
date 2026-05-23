@@ -140,15 +140,21 @@ const uploadMaterial = async (code: string, file: File) => {
 
       <div className="flex flex-col gap-2 ml-4 shrink-0 min-w-32">
         {/* Upload / Replace */}
-        <label className="cursor-pointer text-center text-xs px-4 py-2 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white">
-          {uploading === m.course_code ? 'Uploading...' : m.material_url ? '📤 Replace PDF' : '📤 Upload PDF'}
-          <input type="file" accept=".pdf" className="hidden"
-            disabled={uploading === m.course_code}
-            onChange={e => {
-              const file = e.target.files?.[0]
-              if (file) uploadMaterial(m.course_code, file)
-            }} />
-        </label>
+<label className="cursor-pointer text-center text-xs px-4 py-2 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white">
+  {uploading === m.course_code ? '⏳ Uploading... please wait' : m.material_url ? '📤 Replace PDF' : '📤 Upload PDF'}
+  <input type="file" accept=".pdf" className="hidden"
+    disabled={uploading === m.course_code}
+    onChange={e => {
+      const file = e.target.files?.[0]
+      if (file) {
+        if (file.size > 20 * 1024 * 1024) {
+          setMessage('❌ File too large. Max 20MB.')
+          return
+        }
+        uploadMaterial(m.course_code, file)
+      }
+    }} />
+</label>
 
         {/* Index button — always show if PDF exists */}
         {m.material_url && (

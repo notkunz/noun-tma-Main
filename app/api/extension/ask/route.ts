@@ -18,6 +18,81 @@ const supabaseAdmin = createClient(
 )
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! })
 
+async function slidingWindowSearch(
+  question: string,
+  materialCode: string,
+  courseId: string
+): Promise<any[]> {
+  const words = question
+    .replace(/[^a-zA-Z\s]/g, ' ')
+    .split(' ')
+    .filter((w: string) => w.length > 3)
+
+  const searchPhrases: string[] = []
+  words.forEach((w: string) => searchPhrases.push(w))
+  for (let i = 0; i < words.length - 1; i++) {
+    searchPhrases.push(`${words[i]} ${words[i + 1]}`)
+  }
+  for (let i = 0; i < words.length - 2; i++) {
+    searchPhrases.push(`${words[i]} ${words[i + 1]} ${words[i + 2]}`)
+  }
+
+  // Cap at 15 phrases to avoid hammering DB
+  const limitedPhrases = searchPhrases.slice(0, 15)
+  const chunkMap = new Map<string, string>()
+  let foundChunks: any[] = []
+
+  // Search shared chunks
+  for (const phrase of limitedPhrases) {
+    if (foundChunks.length >= 6) break
+    const { data: matched } = await supabaseAdmin
+      .from('shared_material_chunks')
+      .select('chunk_text')
+      .eq('course_code', materialCode)
+      .ilike('chunk_text', `%${phrase}%`)
+      .limit(2) as { data: any[] | null }
+
+    if (matched && matched.length > 0) {
+      matched.forEach((m: any) => {
+        if (!chunkMap.has(m.chunk_text)) chunkMap.set(m.chunk_text, m.chunk_text)
+      })
+      foundChunks = Array.from(chunkMap.values()).map(t => ({ chunk_text: t }))
+    }
+  }
+
+  // Try course-specific chunks if shared gave nothing
+  if (foundChunks.length === 0) {
+    for (const phrase of limitedPhrases.slice(0, 10)) {
+      const { data: matched } = await supabaseAdmin
+        .from('course_material_chunks')
+        .select('chunk_text')
+        .eq('course_id', courseId)
+        .ilike('chunk_text', `%${phrase}%`)
+        .limit(2) as { data: any[] | null }
+
+      if (matched && matched.length > 0) {
+        matched.forEach((m: any) => {
+          if (!chunkMap.has(m.chunk_text)) chunkMap.set(m.chunk_text, m.chunk_text)
+        })
+        foundChunks = Array.from(chunkMap.values()).map(t => ({ chunk_text: t }))
+        if (foundChunks.length >= 4) break
+      }
+    }
+  }
+
+  // Last resort — first 8 chunks
+  if (foundChunks.length === 0) {
+    const { data: fallback } = await supabaseAdmin
+      .from('shared_material_chunks')
+      .select('chunk_text')
+      .eq('course_code', materialCode)
+      .limit(8) as { data: any[] | null }
+    foundChunks = fallback || []
+  }
+
+  return foundChunks
+}
+
 export async function POST(req: Request) {
   try {
     const token = req.headers.get('authorization')?.replace('Bearer ', '')
@@ -44,7 +119,7 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: 'No active session found' }, { status: 400, headers: corsHeaders })
     if (session.question_count >= 10) return NextResponse.json({ error: 'TMA limit of 10 questions reached' }, { status: 400, headers: corsHeaders })
 
-    // Validate course matches detected page course
+    // Validate course matches page
     if (detected_course_code) {
       const { data: sessionCourse } = await supabaseAdmin
         .from('courses')
@@ -58,7 +133,7 @@ export async function POST(req: Request) {
       if (sessionCode !== pageCode) {
         const { data: correctCourse } = await supabaseAdmin
           .from('courses')
-          .select('id, course_title')
+          .select('id')
           .ilike('course_code', `%${pageCode}%`)
           .limit(1)
           .single() as { data: any }
@@ -86,7 +161,7 @@ export async function POST(req: Request) {
 
     const questionNumber = session.question_count + 1
 
-    // Check question bank first
+    // Check question bank first — skip Groq call if bank is empty
     const { data: bankEntries } = await supabaseAdmin
       .from('question_bank')
       .select('id, question_text, answer_text, times_asked')
@@ -115,7 +190,6 @@ export async function POST(req: Request) {
     let source = 'course_material'
 
     if (bankHit) {
-      // Answer from question bank
       answerText = bankHit.answer_text
       source = 'question_bank'
       await supabaseAdmin
@@ -123,7 +197,6 @@ export async function POST(req: Request) {
         .update({ times_asked: (bankHit.times_asked || 0) + 1 })
         .eq('id', bankHit.id)
     } else {
-      // Get course data and material
       const { data: courseData } = await supabaseAdmin
         .from('courses')
         .select('course_title, course_code, material_text, shared_material_code')
@@ -132,103 +205,48 @@ export async function POST(req: Request) {
 
       if (!courseData) return NextResponse.json({ error: 'Course not found.' }, { status: 404, headers: corsHeaders })
 
-      let materialContext = ''
       const materialCode = courseData.shared_material_code || courseData.course_code
+      const foundChunks = await slidingWindowSearch(question, materialCode, course_id)
 
-// Build search keywords from question — remove common words
-// Extract key phrases from question for ILIKE search
-const questionWords = question
-  .replace(/[^a-zA-Z\s]/g, ' ')
-  .split(' ')
-  .filter((w: string) => w.length > 4)
-  .slice(0, 3)
-
-let foundChunks: any[] = []
-
-// Try ILIKE search for each keyword until we find matching chunks
-for (const word of questionWords) {
-  const { data: matched } = await supabaseAdmin
-    .from('shared_material_chunks')
-    .select('chunk_text')
-    .eq('course_code', materialCode)
-    .ilike('chunk_text', `%${word}%`)
-    .limit(4) as { data: any[] | null }
-
-  if (matched && matched.length > 0) {
-    foundChunks = matched
-    break
-  }
-}
-
-// If no keyword matched, grab first 8 chunks as broad fallback
-if (foundChunks.length === 0) {
-  const { data: fallback } = await supabaseAdmin
-    .from('course_material_chunks')
-    .select('chunk_text')
-    .eq('course_id', course_id)
-    .limit(8) as { data: any[] | null }
-
-  if (fallback && fallback.length > 0) {
-    foundChunks = fallback
-  }
-}
-
-// Also try shared fallback
-if (foundChunks.length === 0) {
-  const { data: sharedFallback } = await supabaseAdmin
-    .from('shared_material_chunks')
-    .select('chunk_text')
-    .eq('course_code', materialCode)
-    .limit(8) as { data: any[] | null }
-
-  if (sharedFallback && sharedFallback.length > 0) {
-    foundChunks = sharedFallback
-  }
-}
-
-if (foundChunks.length > 0) {
-  materialContext = `Course material:\n\n${foundChunks.map((c: any) => c.chunk_text).join('\n\n---\n\n')}`
-} else if (courseData.material_text) {
-  materialContext = `Course material:\n\n${courseData.material_text.slice(0, 10000)}`
-}
-
-      const optionsText = options && options.length > 0
-        ? `\n\nMultiple choice options:\n${options.map((o: string, i: number) => `${String.fromCharCode(65 + i)}. ${o}`).join('\n')}\n\nYou MUST pick one of these options. State the letter and text clearly.`
-        : ''
+      let materialContext = ''
+      if (foundChunks.length > 0) {
+        materialContext = foundChunks.map((c: any) => c.chunk_text).join('\n\n---\n\n')
+      } else if (courseData.material_text) {
+        materialContext = courseData.material_text.slice(0, 10000)
+      }
 
       const hasMaterial = materialContext.length > 0
+
+      const optionsText = options && options.length > 0
+        ? options.map((o: string, i: number) => `${String.fromCharCode(65 + i)}. ${o}`).join('\n')
+        : ''
 
       const result = await groq.chat.completions.create({
         model: 'llama-3.3-70b-versatile',
         messages: [{
           role: 'user',
-          content: `You are a NOUN TMA assistant. A student has a multiple choice question.
-${hasMaterial ? `Here is the relevant course material:\n\n${materialContext}\n\n` : ''}
-The question is:
-"${question}"
-${optionsText ? `\nOptions:\n${optionsText}` : ''}
+          content: `You are a NOUN TMA assistant helping a student answer a multiple choice question.
+${hasMaterial ? `COURSE MATERIAL:\n${materialContext}\n\n` : ''}
+QUESTION: "${question}"
+${optionsText ? `\nOPTIONS:\n${optionsText}` : ''}
 
-${hasMaterial
-  ? `RULES:
-1. Read the course material carefully
-2. Find the exact answer in the material
-3. Match it to one of the options above
-4. Reply with ONLY the letter and option text e.g: "B. Success"
-5. If you cannot find it in the material at all, reply with exactly: ANSWER_NOT_FOUND`
-  : `Reply with the correct answer from the options.`
-}`
+STRICT RULES:
+1. ${hasMaterial ? 'Read the course material above carefully' : 'Use your academic knowledge'}
+2. Find the sentence or paragraph that directly answers the question
+3. Match that answer to one of the options by meaning — not by position
+4. If two options look similar, pick the one whose FULL TEXT matches the material exactly
+5. Reply with ONLY the letter and option text e.g: "B. Success"
+6. ${hasMaterial ? 'If the answer is truly not in the material, reply with exactly: ANSWER_NOT_FOUND' : 'Pick the most accurate option'}`
         }],
-        max_tokens: 1024
+        max_tokens: 512
       })
 
       answerText = result.choices[0]?.message?.content || 'Could not generate answer.'
-
       if (answerText.trim() === 'ANSWER_NOT_FOUND') {
         answerText = '⚠️ Answer not found in course material.'
       }
-    } // ← closes the else block
+    }
 
-    // Save Q&A to session
     const { data: profile } = await supabaseAdmin
       .from('users')
       .select('id')
