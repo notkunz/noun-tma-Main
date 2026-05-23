@@ -10,7 +10,7 @@ export default function CoursesAdminPage() {
   const [message, setMessage] = useState('')
   const [form, setForm] = useState({
     department_id: '', course_code: '', course_title: '',
-    level: '', semester: 'first', tma_cost: '200', shared_material_code: ''
+    level: '', semester: 'first', tma_cost: '300', shared_material_code: ''
   })
 
   useEffect(() => { loadAll() }, [])
@@ -46,7 +46,7 @@ export default function CoursesAdminPage() {
     })
     if (error) return setMessage('Error: ' + error.message)
     setMessage('Course added!')
-    setForm({ department_id: '', course_code: '', course_title: '', level: '', semester: 'first', tma_cost: '200', shared_material_code: '' })
+    setForm({ department_id: '', course_code: '', course_title: '', level: '', semester: 'first', tma_cost: '300', shared_material_code: '' })
     loadAll()
   }
 
