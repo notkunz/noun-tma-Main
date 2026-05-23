@@ -21,21 +21,44 @@ export default function SharedMaterialsPage() {
 
 const uploadMaterial = async (code: string, file: File) => {
   setUploading(code)
+  setMessage('Uploading...')
 
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('course_code', code.toUpperCase())
+  if (file.size > 20 * 1024 * 1024) {
+    setUploading(null)
+    return setMessage('❌ File too large. Max 20MB.')
+  }
 
+  const path = `shared/${code.replace(/\s+/g, '_')}/${file.name}`
+
+  // Upload directly to Supabase Storage from browser
+  const { error: uploadError } = await supabase.storage
+    .from('course-materials')
+    .upload(path, file, { upsert: true })
+
+  if (uploadError) {
+    setUploading(null)
+    return setMessage('Upload error: ' + uploadError.message)
+  }
+
+  const { data: urlData } = supabase.storage
+    .from('course-materials')
+    .getPublicUrl(path)
+
+  // Save to DB via API (small request, fast)
   const res = await fetch('/api/admin/upload-shared-material', {
     method: 'POST',
-    body: formData
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      course_code: code.toUpperCase(),
+      material_url: urlData.publicUrl
+    })
   })
 
   const data = await res.json()
   setUploading(null)
 
-  if (data.error) return setMessage('Upload error: ' + data.error)
-  setMessage(`✅ PDF uploaded for ${code.toUpperCase()}`)
+  if (data.error) return setMessage('DB error: ' + data.error)
+  setMessage(`✅ PDF uploaded for ${code.toUpperCase()}! Now click Index.`)
   loadMaterials()
 }
 
