@@ -29,7 +29,7 @@ const uploadMaterial = async (code: string, file: File) => {
   }
 
   const path = `shared/${code.replace(/\s+/g, '_')}/${file.name}`
-
+  console.log('Uploading to Supabase storage, file size:', file.size, 'bytes')
   // Upload directly to Supabase Storage from browser
   const { error: uploadError } = await supabase.storage
     .from('course-materials')
