@@ -107,59 +107,60 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
       )}
 
-{/* Sidebar — slides in from left */}
-<aside style={{ transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)' }}
-  className="fixed top-0 left-0 h-full w-64 bg-green-700 text-white z-50 transition-transform duration-300">
-  <div className="p-6 pt-4">
-    {/* Close button */}
-    <button
-      onClick={() => setSidebarOpen(false)}
-      className="mb-6 text-green-200 hover:text-white text-sm flex items-center gap-2">
-      ✕ Close menu
-    </button>
+      {/* Sidebar — slides in from left */}
+      <aside className={`fixed top-0 left-0 h-full w-64 bg-green-700 text-white z-50 transform transition-transform duration-300 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        <div className="p-6 pt-4">
+          {/* Close button */}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="mb-6 text-green-200 hover:text-white text-sm flex items-center gap-2">
+            ✕ Close menu
+          </button>
 
-    {/* User info */}
-    <div className="mb-6">
-      <p className="text-green-200 text-xs">Logged in as</p>
-      <p className="font-bold">{user?.full_name || 'Student'}</p>
-    </div>
+          {/* User info */}
+          <div className="mb-6">
+            <p className="text-green-200 text-xs">Logged in as</p>
+            <p className="font-bold">{user?.full_name || 'Student'}</p>
+          </div>
 
-    {/* Wallet */}
-    <div className="bg-green-600 rounded-xl p-4 mb-6">
-      <p className="text-green-200 text-xs mb-1">Wallet Balance</p>
-      <p className="text-2xl font-bold">₦{wallet.toLocaleString()}</p>
-      <button
-        onClick={() => router.push('/dashboard/wallet')}
-        className="mt-2 text-xs bg-white text-green-700 px-3 py-1 rounded-full font-semibold hover:bg-green-50">
-        Top Up
-      </button>
-    </div>
+          {/* Wallet */}
+          <div className="bg-green-600 rounded-xl p-4 mb-6">
+            <p className="text-green-200 text-xs mb-1">Wallet Balance</p>
+            <p className="text-2xl font-bold">₦{wallet.toLocaleString()}</p>
+            <button
+              onClick={() => router.push('/dashboard/wallet')}
+              className="mt-2 text-xs bg-white text-green-700 px-3 py-1 rounded-full font-semibold hover:bg-green-50">
+              Top Up
+            </button>
+          </div>
 
-   {/* Nav Links */}
-<nav className="flex flex-col gap-1">
-  {navLinks.map(link => (
-    <a
-      key={link.href}
-      href={link.href}
-      className="text-sm px-3 py-2.5 rounded-lg transition text-green-100 hover:bg-green-600"
-      style={{
-        background: pathname === link.href ? 'rgba(255,255,255,0.2)' : undefined,
-        fontWeight: pathname === link.href ? '700' : undefined
-      }}>
-      {link.label}
-    </a>
-  ))}
-</nav>
+          {/* Nav Links */}
+          <nav className="flex flex-col gap-1">
+            {navLinks.map(link => (
+              <a
+                key={link.href}
+                href={link.href}
+                className={`text-sm px-3 py-2.5 rounded-lg transition ${
+                  pathname === link.href
+                    ? 'bg-green-500 text-white font-semibold'
+                    : 'text-green-100 hover:bg-green-600'
+                }`}>
+                {link.label}
+              </a>
+            ))}
+          </nav>
 
-    {/* Logout */}
-    <div className="mt-6 pt-6 border-t border-green-600">
-      <button onClick={handleLogout}
-        className="w-full text-sm bg-green-800 hover:bg-green-900 px-3 py-2 rounded-lg text-left">
-        🚪 Logout
-      </button>
-    </div>
-  </div>
-</aside>
+          {/* Logout */}
+          <div className="mt-6 pt-6 border-t border-green-600">
+            <button onClick={handleLogout}
+              className="w-full text-sm bg-green-800 hover:bg-green-900 px-3 py-2 rounded-lg text-left">
+              🚪 Logout
+            </button>
+          </div>
+        </div>
+      </aside>
 
       {/* Main Content */}
       <main className="pt-16 p-6">
