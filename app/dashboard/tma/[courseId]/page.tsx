@@ -280,7 +280,7 @@ if (newCount >= 10 && !data.needs_internet) setShowScoreModal(true)
       ⚠️ Answer not found in course material
     </p>
     <p className="text-orange-700 text-xs mb-3">
-      Would you like the AI to search the internet for this answer?
+      Would you like to search the internet for this answer?
       Internet answers are labelled separately.
     </p>
     <div className="flex gap-3">

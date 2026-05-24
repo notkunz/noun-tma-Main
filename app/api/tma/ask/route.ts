@@ -191,7 +191,7 @@ RULES:
     const answer = result.choices[0]?.message?.content || ''
 
     if (!answer || answer.trim() === '') {
-      return NextResponse.json({ error: 'AI returned empty response. Please try again.' }, { status: 500 })
+      return NextResponse.json({ error: 'Please try again.' }, { status: 500 })
     }
 
     if (answer.trim() === 'ANSWER_NOT_FOUND') {

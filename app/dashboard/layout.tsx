@@ -51,7 +51,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navLinks = [
     { label: '🏠 Dashboard', href: '/dashboard' },
     { label: '📖 All Courses', href: '/dashboard/courses' },
-    { label: '📱 Quick Answer', href: '/dashboard/quick-answer' },
+    //{ label: '📱 Quick Answer', href: '/dashboard/quick-answer' },
     { label: '📝 My TMAs', href: '/dashboard/my-tmas' },
     { label: '💰 Wallet', href: '/dashboard/wallet' },
     { label: '👤 Profile', href: '/dashboard/profile' },
