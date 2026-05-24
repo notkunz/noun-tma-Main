@@ -287,8 +287,21 @@ RULES
 
     return NextResponse.json({ qa }, { headers: corsHeaders })
 
-  } catch (err: any) {
-    console.error('Extension ask error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders })
+} catch (err: any) {
+  console.error('TMA ask error:', err)
+
+  // Handle Groq rate limit gracefully
+  if (err.message?.includes('rate_limit_exceeded') || err.message?.includes('429')) {
+    // Extract retry time from error message
+    const retryMatch = err.message?.match(/try again in (\d+)m(\d+)?/)
+    const minuteMatch = err.message?.match(/(\d+)m/)
+    const minutes = retryMatch?.[1] || minuteMatch?.[1] || '30'
+    return NextResponse.json({
+      error: `⏳ AI is taking a short break. Please try again in ${minutes} minutes.`
+    }, { status: 429 })
   }
+
+  return NextResponse.json({
+    error: 'Something went wrong. Please try again.'
+  }, { status: 500 })
 }

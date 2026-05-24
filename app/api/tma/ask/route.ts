@@ -204,10 +204,24 @@ RULES:
     await incrementSession(session_id, questionNumber)
     return NextResponse.json({ qa })
 
-  } catch (err: any) {
-    console.error('TMA ask error:', err)
-    return NextResponse.json({ error: 'Something went wrong: ' + err.message }, { status: 500 })
+} catch (err: any) {
+  console.error('TMA ask error:', err)
+
+  // Handle Groq rate limit gracefully
+  if (err.message?.includes('rate_limit_exceeded') || err.message?.includes('429')) {
+    // Extract retry time from error message
+    const retryMatch = err.message?.match(/try again in (\d+)m(\d+)?/)
+    const minuteMatch = err.message?.match(/(\d+)m/)
+    const minutes = retryMatch?.[1] || minuteMatch?.[1] || '30'
+    return NextResponse.json({
+      error: `Please try again in ${minutes} minutes.`
+    }, { status: 429 })
   }
+
+  return NextResponse.json({
+    error: 'Something went wrong. Please try again.'
+  }, { status: 500 })
+}
 }
 
 async function saveQA(session_id: string, user_id: string, course_id: string, question: string, answer: string, source: string, questionNumber: number) {
