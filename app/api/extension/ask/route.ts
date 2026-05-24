@@ -172,7 +172,7 @@ export async function POST(req: Request) {
     if (bankEntries && bankEntries.length > 0) {
       const bankList = bankEntries.map((e, i) => `[${i}] ${e.question_text}`).join('\n')
       const matchResult = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
+        model: 'llama-3.1-8b-instant',
         messages: [{
           role: 'user',
           content: `You are an exact question matcher. 
