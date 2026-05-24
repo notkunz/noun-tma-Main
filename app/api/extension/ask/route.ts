@@ -26,7 +26,7 @@ async function slidingWindowSearch(
   const words = question
     .replace(/[^a-zA-Z\s]/g, ' ')
     .split(' ')
-    .filter((w: string) => w.length > 3)
+    .filter((w: string) => w.length > 2)
 
   const searchPhrases: string[] = []
   words.forEach((w: string) => searchPhrases.push(w))
@@ -185,7 +185,8 @@ STRICT RULES:
 - Only match if questions are asking about the EXACT same topic AND same blank/answer
 - Do NOT match questions that are merely on the same subject
 - Reply MATCH:N only if 90%+ similar
-- Otherwise reply NO_MATCH`
+- Otherwise reply NO_MATCH
+`
         }],
         max_tokens: 10
       })
@@ -240,13 +241,15 @@ ${hasMaterial ? `COURSE MATERIAL:\n${materialContext}\n\n` : ''}
 QUESTION: "${question}"
 ${optionsText ? `OPTIONS:\n${optionsText}` : ''}
 
-RULES:
+RULES
 1. For fill-in-the-blank questions, find the sentence in the material that contains those exact words with the blank filled in
 2. For definition questions, find what the material says defines or describes the subject
 3. Match your finding to the closest option
 4. The answer in the material may appear as a definition e.g "Radio Rural Forum is the strategy which..." means the answer to "______ is the strategy which..." is "Radio Rural Forum"
-5. Reply with ONLY the letter and option text e.g "C. Radio rural forum"
-6. If not found reply: ANSWER_NOT_FOUND`
+5. "They" or "it" in the material refers to the last named subject — use that as the answer
+6. If the material mentions a group (Sociologists, Economists etc) doing something, that group IS the answer to "who believes/does ___"
+7. Reply with ONLY the letter and option text e.g "B. Sociologists"
+8. If not found reply: ANSWER_NOT_FOUND`
         }],
         max_tokens: 512
       })
