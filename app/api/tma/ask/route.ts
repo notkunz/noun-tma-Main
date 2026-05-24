@@ -82,7 +82,7 @@ async function slidingWindowSearch(
 
 export async function POST(req: Request) {
   try {
-    const { session_id, course_id, question } = await req.json()
+    const { session_id, course_id, question, optionsText } = await req.json()
 
     if (!question || question.trim().length < 3) {
       return NextResponse.json({ error: 'Question is too short.' }, { status: 400 })
