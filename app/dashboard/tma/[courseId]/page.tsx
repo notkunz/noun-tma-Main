@@ -144,7 +144,7 @@ if (data.needs_internet) {
   setInternetPending({ questionId: data.qa.id, question: data.qa.question_text })
 }
 
-if (newCount >= 10) setShowScoreModal(true)
+if (newCount >= 10 && !data.needs_internet) setShowScoreModal(true)
 }
   const closeSession = async () => {
     if (!finalScore.trim()) return
@@ -306,6 +306,7 @@ if (newCount >= 10) setShowScoreModal(true)
               ? { ...q, answer_text: data.answer, source: 'internet' }
               : q
           ))
+          if ((session.question_count || 0) >= 10) setShowScoreModal(true)
         }}
         disabled={internetLoading}
         className="flex-1 bg-orange-500 text-white rounded-lg py-2 text-sm font-semibold hover:bg-orange-600 disabled:opacity-50">
