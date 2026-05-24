@@ -37,12 +37,10 @@ async function slidingWindowSearch(
     searchPhrases.push(`${words[i]} ${words[i + 1]} ${words[i + 2]}`)
   }
 
-  // Cap at 15 phrases to avoid hammering DB
   const limitedPhrases = searchPhrases.slice(0, 15)
   const chunkMap = new Map<string, string>()
   let foundChunks: any[] = []
 
-  // Search shared chunks
   for (const phrase of limitedPhrases) {
     if (foundChunks.length >= 6) break
     const { data: matched } = await supabaseAdmin
@@ -60,7 +58,6 @@ async function slidingWindowSearch(
     }
   }
 
-  // Try course-specific chunks if shared gave nothing
   if (foundChunks.length === 0) {
     for (const phrase of limitedPhrases.slice(0, 10)) {
       const { data: matched } = await supabaseAdmin
@@ -80,7 +77,6 @@ async function slidingWindowSearch(
     }
   }
 
-  // Last resort — first 8 chunks
   if (foundChunks.length === 0) {
     const { data: fallback } = await supabaseAdmin
       .from('shared_material_chunks')
@@ -108,7 +104,6 @@ export async function POST(req: Request) {
 
     const { question, session_id, course_id, detected_course_code, options } = await req.json()
 
-    // Validate session
     const { data: session } = await supabaseAdmin
       .from('tma_sessions')
       .select('*')
@@ -119,7 +114,6 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: 'No active session found' }, { status: 400, headers: corsHeaders })
     if (session.question_count >= 10) return NextResponse.json({ error: 'TMA limit of 10 questions reached' }, { status: 400, headers: corsHeaders })
 
-    // Validate course matches page
     if (detected_course_code) {
       const { data: sessionCourse } = await supabaseAdmin
         .from('courses')
@@ -161,7 +155,6 @@ export async function POST(req: Request) {
 
     const questionNumber = session.question_count + 1
 
-    // Check question bank first — skip Groq call if bank is empty
     const { data: bankEntries } = await supabaseAdmin
       .from('question_bank')
       .select('id, question_text, answer_text, times_asked')
@@ -175,7 +168,7 @@ export async function POST(req: Request) {
         model: 'llama-3.1-8b-instant',
         messages: [{
           role: 'user',
-          content: `You are an exact question matcher. 
+          content: `You are an exact question matcher.
 Student question: "${question}"
 
 Bank questions:
@@ -185,8 +178,7 @@ STRICT RULES:
 - Only match if questions are asking about the EXACT same topic AND same blank/answer
 - Do NOT match questions that are merely on the same subject
 - Reply MATCH:N only if 90%+ similar
-- Otherwise reply NO_MATCH
-`
+- Otherwise reply NO_MATCH`
         }],
         max_tokens: 10
       })
@@ -227,7 +219,6 @@ STRICT RULES:
       }
 
       const hasMaterial = materialContext.length > 0
-
       const optionsText = options && options.length > 0
         ? options.map((o: string, i: number) => `${String.fromCharCode(65 + i)}. ${o}`).join('\n')
         : ''
@@ -241,7 +232,7 @@ ${hasMaterial ? `COURSE MATERIAL:\n${materialContext}\n\n` : ''}
 QUESTION: "${question}"
 ${optionsText ? `OPTIONS:\n${optionsText}` : ''}
 
-RULES
+RULES:
 1. For fill-in-the-blank questions, find the sentence in the material that contains those exact words with the blank filled in
 2. For definition questions, find what the material says defines or describes the subject
 3. Match your finding to the closest option
@@ -287,21 +278,19 @@ RULES
 
     return NextResponse.json({ qa }, { headers: corsHeaders })
 
-} catch (err: any) {
-  console.error('TMA ask error:', err)
+  } catch (err: any) {
+    console.error('Extension ask error:', err)
 
-  // Handle Groq rate limit gracefully
-  if (err.message?.includes('rate_limit_exceeded') || err.message?.includes('429')) {
-    // Extract retry time from error message
-    const retryMatch = err.message?.match(/try again in (\d+)m(\d+)?/)
-    const minuteMatch = err.message?.match(/(\d+)m/)
-    const minutes = retryMatch?.[1] || minuteMatch?.[1] || '30'
+    if (err.message?.includes('rate_limit_exceeded') || err.message?.includes('429')) {
+      const minuteMatch = err.message?.match(/(\d+)m/)
+      const minutes = minuteMatch?.[1] || '30'
+      return NextResponse.json({
+        error: `Please try again in ${minutes} minutes.`
+      }, { status: 429, headers: corsHeaders })
+    }
+
     return NextResponse.json({
-      error: `⏳ AI is taking a short break. Please try again in ${minutes} minutes.`
-    }, { status: 429 })
+      error: 'Something went wrong. Please try again.'
+    }, { status: 500, headers: corsHeaders })
   }
-
-  return NextResponse.json({
-    error: 'Something went wrong. Please try again.'
-  }, { status: 500 })
 }
