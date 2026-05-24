@@ -175,7 +175,17 @@ export async function POST(req: Request) {
         model: 'llama-3.3-70b-versatile',
         messages: [{
           role: 'user',
-          content: `Does this question match any in the list? Question: "${question}"\n\nList:\n${bankList}\n\nReply MATCH:N or NO_MATCH only.`
+          content: `You are an exact question matcher. 
+Student question: "${question}"
+
+Bank questions:
+${bankList}
+
+STRICT RULES:
+- Only match if questions are asking about the EXACT same topic AND same blank/answer
+- Do NOT match questions that are merely on the same subject
+- Reply MATCH:N only if 90%+ similar
+- Otherwise reply NO_MATCH`
         }],
         max_tokens: 10
       })
@@ -225,18 +235,18 @@ export async function POST(req: Request) {
         model: 'llama-3.3-70b-versatile',
         messages: [{
           role: 'user',
-          content: `You are a NOUN TMA assistant helping a student answer a multiple choice question.
+          content: `You are a NOUN TMA assistant.
 ${hasMaterial ? `COURSE MATERIAL:\n${materialContext}\n\n` : ''}
 QUESTION: "${question}"
-${optionsText ? `\nOPTIONS:\n${optionsText}` : ''}
+${optionsText ? `OPTIONS:\n${optionsText}` : ''}
 
-STRICT RULES:
-1. ${hasMaterial ? 'Read the course material above carefully' : 'Use your academic knowledge'}
-2. Find the sentence or paragraph that directly answers the question
-3. Match that answer to one of the options by meaning — not by position
-4. If two options look similar, pick the one whose FULL TEXT matches the material exactly
-5. Reply with ONLY the letter and option text e.g: "B. Success"
-6. ${hasMaterial ? 'If the answer is truly not in the material, reply with exactly: ANSWER_NOT_FOUND' : 'Pick the most accurate option'}`
+RULES:
+1. For fill-in-the-blank questions, find the sentence in the material that contains those exact words with the blank filled in
+2. For definition questions, find what the material says defines or describes the subject
+3. Match your finding to the closest option
+4. The answer in the material may appear as a definition e.g "Radio Rural Forum is the strategy which..." means the answer to "______ is the strategy which..." is "Radio Rural Forum"
+5. Reply with ONLY the letter and option text e.g "C. Radio rural forum"
+6. If not found reply: ANSWER_NOT_FOUND`
         }],
         max_tokens: 512
       })

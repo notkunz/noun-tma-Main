@@ -114,14 +114,17 @@ export async function POST(req: Request) {
         model: 'llama-3.3-70b-versatile',
         messages: [{
           role: 'user',
-          content: `You are a question matcher. A student asked:
-"${question}"
+          content: `You are an exact question matcher. 
+Student question: "${question}"
 
-Question bank:
+Bank questions:
 ${bankList}
 
-If any question means the SAME thing, reply MATCH:N (N = index number).
-If none match, reply NO_MATCH only.`
+STRICT RULES:
+- Only match if questions are asking about the EXACT same topic AND same blank/answer
+- Do NOT match questions that are merely on the same subject
+- Reply MATCH:N only if 90%+ similar
+- Otherwise reply NO_MATCH`
         }],
         max_tokens: 10
       })
@@ -164,16 +167,18 @@ If none match, reply NO_MATCH only.`
 
     const hasMaterial = materialContext.length > 0
 
-    const prompt = `You are an academic assistant for NOUN (National Open University of Nigeria).
-Course: ${courseData.course_title} (${courseData.course_code})
-${hasMaterial ? `\nCOURSE MATERIAL:\n${materialContext}\n` : ''}
-STRICT RULES:
-1. ${hasMaterial ? 'Answer ONLY from the course material above' : 'Use your academic knowledge'}
-2. Be concise and accurate
-3. For math questions show full step-by-step working
-4. If the answer is not in the material, respond with exactly: ANSWER_NOT_FOUND
+    const prompt = `You are a NOUN TMA assistant.
+${hasMaterial ? `COURSE MATERIAL:\n${materialContext}\n\n` : ''}
+QUESTION: "${question}"
+${optionsText ? `OPTIONS:\n${optionsText}` : ''}
 
-QUESTION: ${question}`
+RULES:
+1. For fill-in-the-blank questions, find the sentence in the material that contains those exact words with the blank filled in
+2. For definition questions, find what the material says defines or describes the subject
+3. Match your finding to the closest option
+4. The answer in the material may appear as a definition e.g "Radio Rural Forum is the strategy which..." means the answer to "______ is the strategy which..." is "Radio Rural Forum"
+5. Reply with ONLY the letter and option text e.g "C. Radio rural forum"
+6. If not found reply: ANSWER_NOT_FOUND`
 
     const result = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
