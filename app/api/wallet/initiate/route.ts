@@ -48,7 +48,7 @@ if (!profile) return
     return NextResponse.json({ url: data.data.authorization_url })
   }
 
-  if (provider === 'flutterwave') {
+  /*if (provider === 'flutterwave') {
     const res = await fetch('https://api.flutterwave.com/v3/payments', {
       method: 'POST',
       headers: {
@@ -65,5 +65,5 @@ if (!profile) return
     })
     const data = await res.json()
     return NextResponse.json({ url: data.data.link })
-  }
+  }*/
 }

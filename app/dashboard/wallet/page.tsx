@@ -110,7 +110,7 @@ function WalletContent() {
         />
 
         <div className="flex gap-3 mb-4">
-          {(['paystack', 'flutterwave'] as const).map(p => (
+          {(['paystack'] as const).map(p => (
             <button key={p}
               onClick={() => setProvider(p)}
               className={`flex-1 py-3 rounded-xl border text-sm font-semibold capitalize transition ${
