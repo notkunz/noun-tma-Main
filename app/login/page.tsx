@@ -59,15 +59,7 @@ const handleForgotPassword = async () => {
             className="w-full bg-green-600 text-white rounded-lg p-3 font-semibold hover:bg-green-700 disabled:opacity-50">
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
-        </form>
-
-        <p className="text-center text-sm text-gray-500 mt-4">
-          No account yet? <a href="/signup" className="text-green-600 font-medium">Create one</a>
-        </p>
-      </div>
-    </div>
-  )
-  {/* Forgot Password */}
+          {/* Forgot Password */}
 <div className="mt-4 text-center">
   <button onClick={() => setShowForgot(!showForgot)}
     className="text-xs text-gray-500 hover:text-yellow-400">
@@ -95,4 +87,12 @@ const handleForgotPassword = async () => {
     </button>
   </div>
 )}
+        </form>
+
+        <p className="text-center text-sm text-gray-500 mt-4">
+          No account yet? <a href="/signup" className="text-green-600 font-medium">Create one</a>
+        </p>
+      </div>
+    </div>
+  )
 }
