@@ -281,7 +281,11 @@ RULES:
   } catch (err: any) {
     console.error('Extension ask error:', err)
 
-    if (err.message?.includes('rate_limit_exceeded') || err.message?.includes('429')) {
+    if (
+      err.message?.includes('rate_limit_exceeded') || 
+      err.message?.includes('429') || 
+      err.status === 429
+    ) {
       const minuteMatch = err.message?.match(/(\d+)m/)
       const minutes = minuteMatch?.[1] || '30'
       return NextResponse.json({
@@ -290,7 +294,7 @@ RULES:
     }
 
     return NextResponse.json({
-      error: 'Something went wrong. Please try again.'
+      error: 'Something went wrong. Please try again.' + (err.message || 'Unknown error')
     }, { status: 500, headers: corsHeaders })
   }
 }

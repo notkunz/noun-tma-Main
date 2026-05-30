@@ -11,6 +11,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [wallet, setWallet] = useState<number>(0)
   const [userId, setUserId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
+  const [navVisible, setNavVisible] = useState(true)
+const [lastScroll, setLastScroll] = useState(0)
+
+useEffect(() => {
+  const handleScroll = () => {
+    const current = window.scrollY
+    if (current < 10) {
+      setNavVisible(true) // always show at top
+    } else if (current < lastScroll) {
+      setNavVisible(true) // scrolling up
+    } else {
+      setNavVisible(false) // scrolling down
+    }
+    setLastScroll(current)
+  }
+  window.addEventListener('scroll', handleScroll)
+  return () => window.removeEventListener('scroll', handleScroll)
+}, [lastScroll])
+
 
   useEffect(() => {
     const load = async () => {
@@ -61,7 +80,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-gray-50">
 
       {/* Top Navbar */}
-      <nav className="bg-green-700 text-white px-4 py-3 flex items-center justify-between fixed top-0 left-0 right-0 z-40">
+      <nav style={{
+  position: 'fixed', top: 0, left: 0, right: 0,
+  zIndex: 40,
+  transform: navVisible ? 'translateY(0)' : 'translateY(-100%)',
+  transition: 'transform 0.3s ease'
+}} className="bg-green-700 text-white px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button onClick={() => setOpen(!open)}
             className="p-2 rounded-lg hover:bg-green-600 transition text-xl">
