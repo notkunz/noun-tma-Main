@@ -82,7 +82,7 @@ const handleForgotPassword = async () => {
       </p>
     )}
     <button onClick={handleForgotPassword} disabled={forgotLoading}
-      className="w-full bg-yellow-500 text-gray-900 rounded-lg py-2 text-sm font-bold disabled:opacity-50">
+      className="w-full bg-green-600 text-white rounded-lg p-3 font-semibold hover:bg-green-700 disabled:opacity-50">
       {forgotLoading ? 'Sending...' : 'Send Reset Link'}
     </button>
   </div>
