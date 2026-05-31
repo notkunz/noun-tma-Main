@@ -12,24 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userId, setUserId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [navVisible, setNavVisible] = useState(true)
-const [lastScroll, setLastScroll] = useState(0)
-
-useEffect(() => {
-  const handleScroll = () => {
-    const current = window.scrollY
-    if (current < 10) {
-      setNavVisible(true) // always show at top
-    } else if (current < lastScroll) {
-      setNavVisible(true) // scrolling up
-    } else {
-      setNavVisible(false) // scrolling down
-    }
-    setLastScroll(current)
-  }
-  window.addEventListener('scroll', handleScroll)
-  return () => window.removeEventListener('scroll', handleScroll)
-}, [lastScroll])
-
+  const [lastScroll, setLastScroll] = useState(0)
 
   useEffect(() => {
     const load = async () => {
@@ -51,6 +34,18 @@ useEffect(() => {
   useEffect(() => { setOpen(false) }, [pathname])
 
   useEffect(() => {
+    const handleScroll = () => {
+      const current = window.scrollY
+      if (current < 10) setNavVisible(true)
+      else if (current < lastScroll) setNavVisible(true)
+      else setNavVisible(false)
+      setLastScroll(current)
+    }
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [lastScroll])
+
+  useEffect(() => {
     if (!userId) return
     const channel = supabase
       .channel('wallet-changes')
@@ -70,94 +65,111 @@ useEffect(() => {
   const navLinks = [
     { label: '🏠 Dashboard', href: '/dashboard' },
     { label: '📖 All Courses', href: '/dashboard/courses' },
-    //{ label: '📱 Quick Answer', href: '/dashboard/quick-answer' },
     { label: '📝 My TMAs', href: '/dashboard/my-tmas' },
     { label: '💰 Wallet', href: '/dashboard/wallet' },
-    //{ label: '👤 Profile', href: '/dashboard/profile' },
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ minHeight: '100vh', background: '#f0fdf4' }}>
 
       {/* Top Navbar */}
       <nav style={{
-  position: 'fixed', top: 0, left: 0, right: 0,
-  zIndex: 40,
-  transform: navVisible ? 'translateY(0)' : 'translateY(-100%)',
-  transition: 'transform 0.3s ease'
-}} className="bg-green-700 text-white px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        position: 'fixed', top: 0, left: 0, right: 0,
+        background: '#15803d',
+        padding: '12px 16px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        zIndex: 40,
+        transform: navVisible ? 'translateY(0)' : 'translateY(-100%)',
+        transition: 'transform 0.3s ease',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.15)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button onClick={() => setOpen(!open)}
-            className="p-2 rounded-lg hover:bg-green-600 transition text-xl">
+            style={{
+              background: 'rgba(255,255,255,0.15)', border: 'none',
+              color: 'white', fontSize: '18px', cursor: 'pointer',
+              padding: '6px 10px', borderRadius: '8px'
+            }}>
             {open ? '✕' : '☰'}
           </button>
-          <span className="font-bold text-lg">📚 NOUN TMA</span>
+          <div>
+            <span style={{ fontWeight: 800, fontSize: '16px', color: 'white' }}>
+              📚 NOUN TMA
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <p className="text-green-200 text-xs">Wallet</p>
-            <p className="font-bold text-sm">₦{wallet.toLocaleString()}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', margin: 0 }}>Wallet</p>
+            <p style={{ fontWeight: 800, fontSize: '14px', color: 'white', margin: 0 }}>
+              ₦{wallet.toLocaleString()}
+            </p>
           </div>
           <button onClick={() => router.push('/dashboard/wallet')}
-            className="text-xs bg-white text-green-700 px-3 py-1.5 rounded-full font-bold hover:bg-green-50">
+            style={{
+              fontSize: '12px', background: 'white', color: '#15803d',
+              border: 'none', padding: '6px 14px', borderRadius: '999px',
+              fontWeight: 700, cursor: 'pointer'
+            }}>
             Top Up
           </button>
         </div>
       </nav>
 
-      {/* Dark overlay */}
+      {/* Overlay */}
       {open && (
-        <div
-          onClick={() => setOpen(false)}
+        <div onClick={() => setOpen(false)}
           style={{
             position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            zIndex: 45
-          }}
-        />
+            background: 'rgba(0,0,0,0.5)', zIndex: 45
+          }} />
       )}
 
       {/* Sidebar */}
       <div style={{
-        position: 'fixed',
-        top: 0, left: 0,
-        height: '100%',
-        width: '260px',
-        background: '#15803d',
-        color: 'white',
+        position: 'fixed', top: 0, left: 0,
+        height: '100%', width: '260px',
+        background: '#14532d',
         zIndex: 50,
         transform: open ? 'translateX(0)' : 'translateX(-260px)',
         transition: 'transform 0.3s ease',
         overflowY: 'auto'
       }}>
         <div style={{ padding: '24px' }}>
-          <button
-            onClick={() => setOpen(false)}
+          <button onClick={() => setOpen(false)}
             style={{
-              background: 'none', border: 'none', color: '#bbf7d0',
-              fontSize: '14px', cursor: 'pointer', marginBottom: '24px',
-              display: 'flex', alignItems: 'center', gap: '8px'
+              background: 'none', border: 'none',
+              color: 'rgba(255,255,255,0.5)', fontSize: '13px',
+              cursor: 'pointer', marginBottom: '24px'
             }}>
-            ✕ Close menu
+            ✕ Close
           </button>
 
           <div style={{ marginBottom: '16px' }}>
-            <p style={{ fontSize: '11px', color: '#bbf7d0' }}>Logged in as</p>
-            <p style={{ fontWeight: 700 }}>{user?.full_name || 'Student'}</p>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+              Logged in as
+            </p>
+            <p style={{ fontWeight: 700, color: 'white', margin: '2px 0 0' }}>
+              {user?.full_name || 'Student'}
+            </p>
           </div>
 
           <div style={{
-            background: '#16a34a', borderRadius: '12px',
-            padding: '16px', marginBottom: '24px'
+            background: 'rgba(255,255,255,0.1)',
+            borderRadius: '14px', padding: '16px', marginBottom: '24px',
+            border: '1px solid rgba(255,255,255,0.15)'
           }}>
-            <p style={{ fontSize: '11px', color: '#bbf7d0', marginBottom: '4px' }}>Wallet Balance</p>
-            <p style={{ fontSize: '24px', fontWeight: 700 }}>₦{wallet.toLocaleString()}</p>
-            <button
-              onClick={() => router.push('/dashboard/wallet')}
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', margin: '0 0 4px' }}>
+              Wallet Balance
+            </p>
+            <p style={{ fontSize: '26px', fontWeight: 800, color: 'white', margin: '0 0 8px' }}>
+              ₦{wallet.toLocaleString()}
+            </p>
+            <button onClick={() => router.push('/dashboard/wallet')}
               style={{
-                marginTop: '8px', fontSize: '11px', background: 'white',
-                color: '#15803d', border: 'none', padding: '4px 12px',
-                borderRadius: '999px', fontWeight: 600, cursor: 'pointer'
+                fontSize: '11px', background: '#16a34a',
+                color: 'white', border: 'none', padding: '5px 14px',
+                borderRadius: '999px', fontWeight: 700, cursor: 'pointer'
               }}>
               Top Up
             </button>
@@ -167,10 +179,11 @@ useEffect(() => {
             {navLinks.map(link => (
               <a key={link.href} href={link.href}
                 style={{
-                  fontSize: '14px', padding: '10px 12px',
-                  borderRadius: '8px', textDecoration: 'none',
-                  background: pathname === link.href ? 'rgba(255,255,255,0.2)' : 'transparent',
-                  color: pathname === link.href ? 'white' : '#dcfce7',
+                  fontSize: '14px', padding: '11px 12px',
+                  borderRadius: '10px', textDecoration: 'none',
+                  background: pathname === link.href
+                    ? 'rgba(255,255,255,0.15)' : 'transparent',
+                  color: pathname === link.href ? 'white' : 'rgba(255,255,255,0.65)',
                   fontWeight: pathname === link.href ? 700 : 400,
                   transition: 'background 0.2s'
                 }}>
@@ -181,13 +194,15 @@ useEffect(() => {
 
           <div style={{
             marginTop: '24px', paddingTop: '24px',
-            borderTop: '1px solid #16a34a'
+            borderTop: '1px solid rgba(255,255,255,0.1)'
           }}>
             <button onClick={handleLogout}
               style={{
-                width: '100%', fontSize: '13px', background: '#14532d',
-                color: 'white', border: 'none', padding: '10px 12px',
-                borderRadius: '8px', cursor: 'pointer', textAlign: 'left'
+                width: '100%', fontSize: '13px',
+                background: 'rgba(255,255,255,0.08)',
+                color: 'rgba(255,255,255,0.7)', border: 'none',
+                padding: '10px 12px', borderRadius: '10px',
+                cursor: 'pointer', textAlign: 'left'
               }}>
               🚪 Logout
             </button>
@@ -196,7 +211,7 @@ useEffect(() => {
       </div>
 
       {/* Main Content */}
-      <main className="pt-16 p-4 md:p-6">
+      <main style={{ paddingTop: '64px', padding: '72px 16px 32px' }}>
         {children}
       </main>
     </div>

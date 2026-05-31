@@ -71,6 +71,7 @@ const loadCourse = async () => {
   }
 
 const startSession = async () => {
+  const [showConfirm, setShowConfirm] = useState(false)
   setStarting(true)
   setError('')
 
@@ -165,7 +166,7 @@ if (newCount >= 10 && !data.needs_internet) setShowScoreModal(true)
 
   // Not started yet
   if (!session) return (
-    <div className="max-w-xl mx-auto mt-20 text-center">
+    <div className="max-w-xl mx-auto mt-20 text-center" style={{ marginTop: '20px' }}>
       <div className="bg-white rounded-2xl shadow-sm border p-10">
         <p className="text-4xl mb-4">📖</p>
         <h2 className="text-xl font-bold text-gray-800 mb-1">{course?.course_title}</h2>
@@ -184,20 +185,90 @@ if (newCount >= 10 && !data.needs_internet) setShowScoreModal(true)
 
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
-        <button onClick={startSession} disabled={starting}
-          className="w-full bg-green-600 text-white rounded-xl py-4 font-bold hover:bg-green-700 disabled:opacity-50">
-          {starting ? 'Starting...' : 'Start TMA Session'}
+        <button onClick={() => setShowConfirm(true)} disabled={starting}
+           className="w-full bg-green-600 text-white rounded-xl py-4 font-bold hover:bg-green-700 disabled:opacity-50">
+           {starting ? 'Starting...' : 'Start TMA Session'}
         </button>
+
         <button onClick={() => router.back()}
           className="w-full mt-3 text-gray-400 text-sm hover:text-gray-600">
           Go back
         </button>
       </div>
+      {/* Confirmation Modal */}
+{showConfirm && (
+  <div style={{
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 999, padding: '16px'
+  }}>
+    <div style={{
+      background: 'white', borderRadius: '20px',
+      padding: '32px', maxWidth: '360px', width: '100%', textAlign: 'center'
+    }}>
+      <p style={{ fontSize: '40px', marginBottom: '12px' }}>⚠️</p>
+      <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#111', marginBottom: '8px' }}>
+        Confirm TMA Start
+      </h3>
+      <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>
+        You are about to start:
+      </p>
+      <p style={{ fontSize: '15px', fontWeight: 700, color: '#15803d', marginBottom: '4px' }}>
+        {course?.course_code}
+      </p>
+      <p style={{ fontSize: '13px', color: '#374151', marginBottom: '16px' }}>
+        {course?.course_title}
+      </p>
+      <div style={{
+        background: '#f9fafb', borderRadius: '10px',
+        padding: '12px', marginBottom: '20px', textAlign: 'left'
+      }}>
+        <p style={{ fontSize: '12px', color: '#374151', margin: '0 0 4px' }}>
+          💰 ₦{course?.tma_cost || 200} will be deducted from your wallet
+        </p>
+        <p style={{ fontSize: '12px', color: '#374151', margin: '0 0 4px' }}>
+          📝 You get up to 10 questions
+        </p>
+        <p style={{ fontSize: '12px', color: '#374151', margin: 0 }}>
+          🔒 No refund once started
+        </p>
+      </div>
+      {error && (
+        <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '12px' }}>{error}</p>
+      )}
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <button
+          onClick={() => setShowConfirm(false)}
+          style={{
+            flex: 1, padding: '12px', borderRadius: '12px',
+            border: '1px solid #e5e7eb', background: 'white',
+            color: '#374151', fontWeight: 600, cursor: 'pointer', fontSize: '14px'
+          }}>
+          Cancel
+        </button>
+        <button
+          onClick={async () => {
+            setShowConfirm(false)
+            await startSession()
+          }}
+          disabled={starting}
+          style={{
+            flex: 1, padding: '12px', borderRadius: '12px',
+            border: 'none', background: '#16a34a',
+            color: 'white', fontWeight: 700, cursor: 'pointer',
+            fontSize: '14px', opacity: starting ? 0.5 : 1
+          }}>
+          {starting ? 'Starting...' : 'Yes, Start'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   )
 
   return (
-    <div className="max-w-3xl mx-auto">
+  <div className="max-w-3xl mx-auto" style={{ paddingTop: '16px' }}>
       {/* Header */}
 <div className="flex items-center justify-between mb-6">
   <div className="flex items-center gap-3">
