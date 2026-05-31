@@ -7,147 +7,148 @@ export default function CoursesPage() {
   const supabase = createClient()
   const router = useRouter()
   const [search, setSearch] = useState('')
-  const [faculties, setFaculties] = useState<any[]>([])
-  const [allCourses, setAllCourses] = useState<any[]>([])
-  const [expanded, setExpanded] = useState<string | null>(null)
-  const [expandedDept, setExpandedDept] = useState<string | null>(null)
+  const [materials, setMaterials] = useState<any[]>([])
+  const [filtered, setFiltered] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [starting, setStarting] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [wallet, setWallet] = useState(0)
 
   useEffect(() => {
     const load = async () => {
-      const { data: facultyData } = await supabase
-        .from('faculties')
-        .select(`
-          id, name,
-          departments (
-            id, name,
-            courses (
-              id, course_code, course_title, level, semester, tma_cost
-            )
-          )
-        `)
-      setFaculties(facultyData || [])
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-      // Flat list for search
-      const flat: any[] = []
-      facultyData?.forEach((f: any) =>
-        f.departments?.forEach((d: any) =>
-          d.courses?.forEach((c: any) =>
-            flat.push({ ...c, department: d.name, faculty: f.name })
-          )
-        )
-      )
-      setAllCourses(flat)
+      const { data: profile } = await supabase
+        .from('users').select('id')
+        .eq('auth_id', user.id).single() as { data: any }
+      setUserId(profile?.id)
+
+      const { data: w } = await supabase
+        .from('wallets').select('balance')
+        .eq('user_id', profile?.id).single() as { data: any }
+      setWallet(w?.balance || 0)
+
+      const { data } = await supabase
+        .from('shared_materials')
+        .select('*')
+        .eq('material_indexed', true)
+        .order('course_code')
+      setMaterials(data || [])
+      setFiltered(data || [])
+      setLoading(false)
     }
     load()
   }, [])
 
-  const filtered = search.trim()
-    ? allCourses.filter(c =>
-        c.course_code.toLowerCase().includes(search.toLowerCase()) ||
-        c.course_title.toLowerCase().includes(search.toLowerCase()) ||
-        c.department.toLowerCase().includes(search.toLowerCase())
+  useEffect(() => {
+    if (!search.trim()) {
+      setFiltered(materials)
+    } else {
+      setFiltered(
+        materials.filter(m =>
+          m.course_code.toLowerCase().includes(search.toLowerCase())
+        )
       )
-    : null
+    }
+  }, [search, materials])
+
+  const startTMA = async (courseCode: string) => {
+    setStarting(courseCode)
+    setError('')
+
+    // Find or create a course entry for this course code
+    const res = await fetch('/api/tma/start-by-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ course_code: courseCode })
+    })
+    const data = await res.json()
+    setStarting(null)
+
+    if (data.error) return setError(data.error)
+    router.push(`/dashboard/tma/${data.course_id}`)
+  }
 
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-800 mb-1">All Courses</h2>
-      <p className="text-gray-500 text-sm mb-6">Browse by faculty or search for a specific course</p>
+      <p className="text-gray-500 text-sm mb-6">
+        Search for your course and begin your TMA
+      </p>
 
-      {/* Search Bar */}
-      <div className="mb-6">
-        <input
-          type="text"
-          placeholder="🔍 Search by course code, title or department..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full border border-gray-200 rounded-xl p-4 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-        />
-      </div>
-
-      {/* Search Results */}
-      {filtered && (
-        <div className="mb-8 bg-white rounded-xl border shadow-sm p-4">
-          <p className="text-xs text-gray-400 mb-3">{filtered.length} result(s) found</p>
-          {filtered.length === 0 ? (
-            <p className="text-gray-400 text-sm">No courses match your search.</p>
-          ) : (
-            <div className="space-y-2">
-              {filtered.map(course => (
-                <CourseCard key={course.id} course={course} router={router} />
-              ))}
-            </div>
-          )}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-sm">
+          {error}
         </div>
       )}
 
-      {/* Faculty Browser */}
-      {!filtered && (
-        <div className="space-y-4">
-          {faculties.map((faculty: any) => (
-            <div key={faculty.id} className="bg-white rounded-xl border shadow-sm overflow-hidden">
-              {/* Faculty Header */}
-              <button
-                onClick={() => setExpanded(expanded === faculty.id ? null : faculty.id)}
-                className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition">
-                <span className="font-bold text-gray-800">🏛️ {faculty.name}</span>
-                <span className="text-gray-400">{expanded === faculty.id ? '▲' : '▼'}</span>
-              </button>
+      {/* Wallet warning */}
+      {wallet < 200 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
+          <p className="text-yellow-800 text-sm font-semibold">
+            ⚠️ Low wallet balance — ₦{wallet.toLocaleString()}
+          </p>
+          <button
+            onClick={() => router.push('/dashboard/wallet')}
+            className="text-xs text-yellow-700 underline mt-1">
+            Top up to start a TMA
+          </button>
+        </div>
+      )}
 
-              {/* Departments */}
-              {expanded === faculty.id && (
-                <div className="border-t">
-                  {faculty.departments?.map((dept: any) => (
-                    <div key={dept.id} className="border-b last:border-0">
-                      <button
-                        onClick={() => setExpandedDept(expandedDept === dept.id ? null : dept.id)}
-                        className="w-full flex items-center justify-between px-6 py-3 hover:bg-green-50 transition">
-                        <span className="text-sm font-medium text-gray-700">📂 {dept.name}</span>
-                        <span className="text-gray-400 text-xs">{expandedDept === dept.id ? '▲' : '▼'}</span>
-                      </button>
+      {/* Search */}
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="🔍 Search by course code e.g. GST101, MAC212..."
+          value={search}
+          onChange={e => setSearch(e.target.value.toUpperCase())}
+          className="w-full border border-gray-200 rounded-xl p-4 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 text-black"
+        />
+      </div>
 
-                      {/* Courses */}
-                      {expandedDept === dept.id && (
-                        <div className="px-6 pb-4 space-y-2">
-                          {dept.courses?.map((course: any) => (
-                            <CourseCard key={course.id} course={course} router={router} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+      {loading ? (
+        <div className="space-y-3">
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className="bg-white rounded-xl border p-4 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2" />
+              <div className="h-3 bg-gray-100 rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16">
+          <p className="text-4xl mb-4">📭</p>
+          <p className="text-gray-500 text-sm">
+            {search ? `No course found for "${search}"` : 'No courses available yet'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(m => (
+            <div key={m.id}
+              className="bg-white rounded-xl border shadow-sm p-4 flex items-center justify-between">
+              <div>
+                <p className="font-bold text-gray-800 text-lg">{m.course_code}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                    ✅ Material ready
+                  </span>
+                  <span className="text-xs text-gray-400">TMA cost: ₦200</span>
                 </div>
-              )}
+              </div>
+              <button
+                onClick={() => startTMA(m.course_code)}
+                disabled={starting === m.course_code}
+                className="bg-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-green-700 disabled:opacity-50 shrink-0">
+                {starting === m.course_code ? 'Starting...' : 'Start TMA'}
+              </button>
             </div>
           ))}
         </div>
       )}
-    </div>
-  )
-}
-
-// Reusable Course Card
-function CourseCard({ course, router }: { course: any; router: any }) {
-  return (
-    <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4 border">
-      <div>
-        <p className="font-semibold text-sm text-gray-800">
-          {course.course_code} — {course.course_title}
-        </p>
-        <p className="text-xs text-gray-400 mt-0.5">
-          {course.level} Level &nbsp;|&nbsp;
-          {course.semester === 'first' ? '1st' : '2nd'} Semester
-          {course.department ? ` | ${course.department}` : ''}
-        </p>
-      </div>
-      <div className="text-right ml-4 shrink-0">
-        <p className="text-green-700 font-bold text-sm">₦{course.tma_cost}</p>
-        <button
-          onClick={() => router.push(`/dashboard/tma/${course.id}`)}
-          className="mt-1 text-xs bg-green-600 text-white px-4 py-1.5 rounded-full hover:bg-green-700 transition">
-          Start TMA
-        </button>
-      </div>
     </div>
   )
 }

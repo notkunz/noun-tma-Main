@@ -52,18 +52,18 @@ setRecentSessions(uniqueSessions)
 
       {/* Quick Actions */}
       <div className="grid grid-cols-3 gap-4 mb-8">
-        {[
-          { label: 'Browse Courses', icon: '📖', href: '/dashboard/courses' },
-          { label: 'Top Up Wallet', icon: '💰', href: '/dashboard/wallet' },
-          { label: 'My TMAs', icon: '📝', href: '/dashboard/my-tmas' },
-        ].map(action => (
-          <button key={action.href}
-            onClick={() => router.push(action.href)}
-            className="bg-white rounded-xl p-6 shadow-sm border hover:shadow-md transition text-left">
-            <p className="text-3xl mb-2">{action.icon}</p>
-            <p className="font-semibold text-gray-700">{action.label}</p>
-          </button>
-        ))}
+{[
+  { label: 'Browse Courses', icon: '📖', href: '/dashboard/courses' },
+  { label: 'Top Up Wallet', icon: '💰', href: '/dashboard/wallet' },
+  { label: 'My TMAs', icon: '📝', href: '/dashboard/my-tmas' },
+].map(action => (
+  <button key={action.href}
+    onClick={() => router.push(action.href)}
+    className="bg-white rounded-xl p-6 shadow-sm border hover:shadow-md transition text-left">
+    <p className="text-3xl mb-2">{action.icon}</p>
+    <p className="font-semibold text-gray-700">{action.label}</p>
+  </button>
+))}
       </div>
 
       {/* Recent TMA Sessions */}
