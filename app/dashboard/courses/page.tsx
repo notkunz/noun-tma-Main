@@ -134,9 +134,9 @@ export default function CoursesPage() {
                 <p className="font-bold text-gray-800 text-lg">{m.course_code}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                    ✅ Material ready
+                    ✅ Ready
                   </span>
-                  <span className="text-xs text-gray-400">TMA cost: ₦200</span>
+                  <span className="text-xs text-gray-400">Click start</span>
                 </div>
               </div>
               <button
