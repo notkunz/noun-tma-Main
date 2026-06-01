@@ -156,6 +156,31 @@ function WalletContent() {
           </div>
         )}
       </div>
+      {transactions.filter((t: any) => t.status === 'pending').length > 0 && (
+  <div className="mt-4">
+    <p className="text-xs text-gray-500 mb-2">Have a pending transaction?</p>
+    {transactions.filter((t: any) => t.status === 'pending').map((t: any) => (
+      <button key={t.id}
+        onClick={async () => {
+          const res = await fetch('/api/wallet/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reference: t.id, provider: t.payment_provider })
+          })
+          const data = await res.json()
+          if (data.success) {
+            setMessage(`✅ ₦${t.amount} added to wallet!`)
+            loadWallet()
+          } else {
+            setMessage('Still pending: ' + data.error)
+          }
+        }}
+        className="text-xs bg-yellow-500 text-white px-4 py-2 rounded-lg font-semibold mr-2 mb-2">
+        Retry ₦{t.amount.toLocaleString()} payment
+      </button>
+    ))}
+  </div>
+)}
     </div>
   )
 }

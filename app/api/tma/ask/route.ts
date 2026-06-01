@@ -9,6 +9,21 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+async function callGroqWithRetry(groq: any, params: any, retries = 2): Promise<any> {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await groq.chat.completions.create(params)
+    } catch (err: any) {
+      if (err.message?.includes('429') && i < retries) {
+        console.log(`Rate limited, waiting 10s before retry ${i + 1}`)
+        await new Promise(r => setTimeout(r, 10000))
+        continue
+      }
+      throw err
+    }
+  }
+}
+
 async function slidingWindowSearch(
   question: string,
   materialCode: string,
@@ -110,7 +125,7 @@ export async function POST(req: Request) {
     let bankHit = null
     if (bankEntries && bankEntries.length > 0) {
       const bankList = bankEntries.map((e, i) => `[${i}] ${e.question_text}`).join('\n')
-      const matchResult = await groq.chat.completions.create({
+      const matchResult = await callGroqWithRetry(groq, {
         model: 'llama-3.1-8b-instant',
         messages: [{
           role: 'user',
@@ -182,7 +197,7 @@ RULES:
 7. Reply with ONLY the letter and option text e.g "B. Sociologists"
 8. If not found reply: ANSWER_NOT_FOUND`
 
-    const result = await groq.chat.completions.create({
+    const result = await callGroqWithRetry(groq, {
       model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 1024

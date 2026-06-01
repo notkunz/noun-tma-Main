@@ -7,19 +7,28 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: Request) {
-  const { reference, provider } = await req.json()
+  try {
+    const { reference, provider } = await req.json()
+    console.log('Verifying payment:', reference, provider)
 
-  // 1. Find the pending transaction
-  const { data: transaction } = await supabaseAdmin
-    .from('transactions')
-    .select('*')
-    .eq('id', reference)
-    .eq('status', 'pending')
-    .single()
+    const { data: transaction } = await supabaseAdmin
+      .from('transactions')
+      .select('*')
+      .eq('id', reference)
+      .single() as { data: any }
 
-  if (!transaction) {
-    return NextResponse.json({ error: 'Transaction not found or already processed' }, { status: 400 })
-  }
+    console.log('Transaction found:', transaction?.status, transaction?.amount)
+
+    if (!transaction) {
+      return NextResponse.json({ error: 'Transaction not found' }, { status: 400 })
+    }
+
+    if (transaction.status === 'success') {
+      // Already processed — return success without double crediting
+      return NextResponse.json({ success: true, amount: transaction.amount, already_processed: true })
+    }
+
+    // ... rest of verification
 
   // 2. Verify with payment provider
   let verified = false
@@ -82,4 +91,8 @@ if (provider === 'flutterwave') {
     .eq('id', reference)
 
   return NextResponse.json({ success: true, amount: transaction.amount })
-}
+  } catch (error) {
+    console.error('Verification error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+} 
