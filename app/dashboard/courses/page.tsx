@@ -85,7 +85,7 @@ export default function CoursesPage() {
       )}
 
       {/* Wallet warning */}
-      {wallet < 200 && (
+      {wallet < 400 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
           <p className="text-yellow-800 text-sm font-semibold">
             ⚠️ Low wallet balance — ₦{wallet.toLocaleString()}

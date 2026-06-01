@@ -22,6 +22,7 @@ export default function TMAPage() {
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [internetPending, setInternetPending] = useState<{questionId: string, question: string} | null>(null)
   const [internetLoading, setInternetLoading] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   useEffect(() => { loadCourse() }, [])
 
@@ -71,7 +72,6 @@ const loadCourse = async () => {
   }
 
 const startSession = async () => {
-  const [showConfirm, setShowConfirm] = useState(false)
   setStarting(true)
   setError('')
 
@@ -224,7 +224,7 @@ if (newCount >= 10 && !data.needs_internet) setShowScoreModal(true)
         padding: '12px', marginBottom: '20px', textAlign: 'left'
       }}>
         <p style={{ fontSize: '12px', color: '#374151', margin: '0 0 4px' }}>
-          💰 ₦{course?.tma_cost || 200} will be deducted from your wallet
+          💰 ₦{course?.tma_cost || 400} will be deducted from your wallet
         </p>
         <p style={{ fontSize: '12px', color: '#374151', margin: '0 0 4px' }}>
           📝 You get up to 10 questions

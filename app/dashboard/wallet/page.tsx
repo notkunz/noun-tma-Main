@@ -81,7 +81,7 @@ function WalletContent() {
       <div className="bg-green-700 text-white rounded-2xl p-6 mb-6">
         <p className="text-green-200 text-sm">Available Balance</p>
         <p className="text-4xl font-bold mt-1">₦{balance.toLocaleString()}</p>
-        <p className="text-green-300 text-xs mt-2">Each TMA session costs ₦200 – ₦300</p>
+        <p className="text-green-300 text-xs mt-2">Each TMA session costs ₦400 – ₦500</p>
       </div>
 
       <div className="bg-white rounded-xl border shadow-sm p-6 mb-6">
