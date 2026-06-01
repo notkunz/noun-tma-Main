@@ -136,7 +136,7 @@ export default function CoursesPage() {
                   <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
                     ✅ Ready
                   </span>
-                  <span className="text-xs text-gray-400">Cost: ₦{m.tma_cost}</span>
+                  <span className="text-xs text-gray-400">Cost:400</span>
                 </div>
               </div>
               <button
