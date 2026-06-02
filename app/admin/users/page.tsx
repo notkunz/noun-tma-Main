@@ -26,7 +26,7 @@ export default function UsersPage() {
     <div>
       <h2 className="text-2xl font-bold mb-6">Users ({users.length})</h2>
       <input value={search} onChange={e => setSearch(e.target.value)}
-        placeholder="🔍 Search by name, matric or email..."
+        placeholder="Search by name, matric or email..."
         className="w-full bg-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-400 mb-6" />
 
       {loading ? (

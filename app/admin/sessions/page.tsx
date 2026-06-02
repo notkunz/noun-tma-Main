@@ -28,7 +28,7 @@ export default function SessionsPage() {
     <div>
       <h2 className="text-2xl font-bold mb-6">TMA Sessions</h2>
       <input value={search} onChange={e => setSearch(e.target.value)}
-        placeholder="🔍 Search by name, matric or course..."
+        placeholder="Search by name, matric or course..."
         className="w-full bg-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-400 mb-6" />
 
       <div className="space-y-3">

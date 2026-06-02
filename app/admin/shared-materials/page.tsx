@@ -25,7 +25,7 @@ const uploadMaterial = async (code: string, file: File) => {
 
   if (file.size > 20 * 1024 * 1024) {
     setUploading(null)
-    return setMessage('❌ File too large. Max 20MB.')
+    return setMessage('File too large. Max 20MB.')
   }
 
   const path = `shared/${code.replace(/\s+/g, '_')}/${file.name}`
@@ -60,7 +60,7 @@ const uploadMaterial = async (code: string, file: File) => {
   setUploading(null)
 
   if (data.error) return setMessage('DB error: ' + data.error)
-  setMessage(`✅ PDF uploaded for ${code.toUpperCase()}! Now click Index.`)
+  setMessage(`PDF uploaded for ${code.toUpperCase()}! Now click Index.`)
   loadMaterials()
 }
 
@@ -72,7 +72,7 @@ const uploadMaterial = async (code: string, file: File) => {
       body: JSON.stringify({ course_code: code })
     })
     const data = await res.json()
-    if (data.success) setMessage(`✅ ${code} indexed! ${data.chunks} chunks from ${data.pages} pages.`)
+    if (data.success) setMessage(`${code} indexed! ${data.chunks} chunks from ${data.pages} pages.`)
     else setMessage('Error: ' + data.error)
     loadMaterials()
   }
@@ -135,7 +135,7 @@ const uploadMaterial = async (code: string, file: File) => {
         <div className="flex items-center gap-2 mt-1">
           {m.material_url ? (
             <span className="text-xs bg-blue-800 text-blue-300 px-2 py-0.5 rounded-full">
-              📄 PDF uploaded
+              PDF uploaded
             </span>
           ) : (
             <span className="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">
@@ -144,11 +144,11 @@ const uploadMaterial = async (code: string, file: File) => {
           )}
           {m.material_indexed ? (
             <span className="text-xs bg-green-800 text-green-300 px-2 py-0.5 rounded-full">
-              ✅ Indexed & Active
+              Indexed & Active
             </span>
           ) : (
             <span className="text-xs bg-yellow-800 text-yellow-300 px-2 py-0.5 rounded-full">
-              ⚠️ Not indexed
+              Not indexed
             </span>
           )}
         </div>
@@ -166,14 +166,14 @@ const uploadMaterial = async (code: string, file: File) => {
       <div className="flex flex-col gap-2 ml-4 shrink-0 min-w-32">
         {/* Upload / Replace */}
 <label className="cursor-pointer text-center text-xs px-4 py-2 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white">
-  {uploading === m.course_code ? '⏳ Uploading... please wait' : m.material_url ? '📤 Replace PDF' : '📤 Upload PDF'}
+  {uploading === m.course_code ? 'Uploading... please wait' : m.material_url ? 'Replace PDF' : 'Upload PDF'}
   <input type="file" accept=".pdf" className="hidden"
     disabled={uploading === m.course_code}
     onChange={e => {
       const file = e.target.files?.[0]
       if (file) {
         if (file.size > 20 * 1024 * 1024) {
-          setMessage('❌ File too large. Max 20MB.')
+          setMessage('File too large. Max 20MB.')
           return
         }
         uploadMaterial(m.course_code, file)
@@ -190,7 +190,7 @@ const uploadMaterial = async (code: string, file: File) => {
                 ? 'bg-gray-600 hover:bg-gray-500'
                 : 'bg-yellow-500 hover:bg-yellow-600'
             }`}>
-            {m.material_indexed ? '🔄 Re-index' : '⚡ Index Now'}
+            {m.material_indexed ? 'Re-index' : 'Index Now'}
           </button>
         )}
 
@@ -199,7 +199,7 @@ const uploadMaterial = async (code: string, file: File) => {
           <button
             onClick={() => deleteMaterial(m.course_code, m.material_url)}
             className="text-xs bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold">
-            🗑️ Delete PDF
+            Delete PDF
           </button>
         )}
       </div>

@@ -22,7 +22,7 @@ const handleForgotPassword = async () => {
   })
   setForgotLoading(false)
   if (error) setForgotMessage('Error: ' + error.message)
-  else setForgotMessage('✅ Reset link sent! Check your email.')
+  else setForgotMessage('Reset link sent! Check your email.')
 }
 
   const handleSubmit = async (e: React.FormEvent) => {

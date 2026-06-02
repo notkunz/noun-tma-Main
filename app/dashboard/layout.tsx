@@ -63,11 +63,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const navLinks = [
-    { label: '🏠 Dashboard', href: '/dashboard' },
-    { label: '📖 All Courses', href: '/dashboard/courses' },
-    { label: '📝 My TMAs', href: '/dashboard/my-tmas' },
-    { label: '💰 Wallet', href: '/dashboard/wallet' },
-    { label: '🆘 Support', href: '/dashboard/support' },
+    { label: 'Dashboard', href: '/dashboard' },
+    { label: 'All Courses', href: '/dashboard/courses' },
+    { label: 'My TMAs', href: '/dashboard/my-tmas' },
+    { label: 'Wallet', href: '/dashboard/wallet' },
+    { label: 'Support', href: '/dashboard/support' },
   ]
 
   return (

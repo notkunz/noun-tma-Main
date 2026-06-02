@@ -44,7 +44,6 @@ setSessions(unique)
         <p className="text-gray-400">Loading...</p>
       ) : sessions.length === 0 ? (
         <div className="text-center py-20">
-          <p className="text-4xl mb-4">📭</p>
           <p className="text-gray-500">No TMA sessions yet.</p>
           <button onClick={() => router.push('/dashboard/courses')}
             className="mt-4 bg-green-600 text-white px-6 py-2 rounded-xl text-sm font-semibold">

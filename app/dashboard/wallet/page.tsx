@@ -51,7 +51,7 @@ function WalletContent() {
     })
     const data = await res.json()
     if (data.success) {
-      setMessage(`✅ ₦${data.amount} added to your wallet!`)
+      setMessage(`₦${data.amount} added to your wallet!`)
       loadWallet()
     }
   }
@@ -118,7 +118,7 @@ function WalletContent() {
                   ? 'bg-green-600 text-white border-green-600'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-green-400'
               }`}>
-              {p === 'paystack' ? '💳 Paystack' : '🦋 Flutterwave'}
+              {p === 'paystack' ? 'Paystack' : 'Flutterwave'}
             </button>
           ))}
         </div>
@@ -169,7 +169,7 @@ function WalletContent() {
           })
           const data = await res.json()
           if (data.success) {
-            setMessage(`✅ ₦${t.amount} added to wallet!`)
+            setMessage(`₦${t.amount} added to wallet!`)
             loadWallet()
           } else {
             setMessage('Still pending: ' + data.error)

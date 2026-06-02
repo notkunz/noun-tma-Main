@@ -79,7 +79,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-2 gap-6">
         {/* Top Courses */}
         <div className="bg-gray-800 rounded-xl p-6">
-          <h3 className="font-bold mb-4">🔥 Most Popular Courses</h3>
+          <h3 className="font-bold mb-4">Most Popular Courses</h3>
           <div className="space-y-2">
             {topCourses.map((c: any, i) => (
               <div key={i} className="flex items-center justify-between">
@@ -94,7 +94,7 @@ export default function AnalyticsPage() {
 
         {/* Top Questions */}
         <div className="bg-gray-800 rounded-xl p-6">
-          <h3 className="font-bold mb-4">❓ Most Asked Questions</h3>
+          <h3 className="font-bold mb-4">Most Asked Questions</h3>
           <div className="space-y-2">
             {topQuestions.map((q: any, i) => (
               <div key={i} className="flex items-start justify-between gap-2">
@@ -107,7 +107,7 @@ export default function AnalyticsPage() {
 
         {/* Courses Needing Better PDFs */}
         <div className="bg-gray-800 rounded-xl p-6">
-          <h3 className="font-bold mb-2">⚠️ Courses Needing Better PDFs</h3>
+          <h3 className="font-bold mb-2">Courses Needing Better PDFs</h3>
           <p className="text-gray-400 text-xs mb-4">High "answer not found" rate</p>
           <div className="space-y-2">
             {notFoundRate.map((c: any, i) => (
@@ -123,7 +123,7 @@ export default function AnalyticsPage() {
 
         {/* Daily Revenue */}
         <div className="bg-gray-800 rounded-xl p-6">
-          <h3 className="font-bold mb-4">💰 Revenue This Week</h3>
+          <h3 className="font-bold mb-4">Revenue This Week</h3>
           <div className="space-y-2">
             {dailyRevenue.map((d, i) => (
               <div key={i} className="flex items-center justify-between">

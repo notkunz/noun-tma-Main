@@ -10,12 +10,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => { setOpen(false) }, [pathname])
 
   const navLinks = [
-    { label: '📊 Overview', href: '/admin' },
-    { label: '👥 Users', href: '/admin/users' },
-    { label: '🏦 Question Bank', href: '/admin/question-bank' },
-    { label: '📝 Sessions', href: '/admin/sessions' },
-    { label: '📊 Analytics', href: '/admin/analytics' },
-    { label: '📚 Shared Materials', href: '/admin/shared-materials' },
+    { label: 'Overview', href: '/admin' },
+    { label: 'Users', href: '/admin/users' },
+    { label: 'Question Bank', href: '/admin/question-bank' },
+    { label: 'Sessions', href: '/admin/sessions' },
+    { label: 'Analytics', href: '/admin/analytics' },
+    { label: 'Shared Materials', href: '/admin/shared-materials' },
   ]
 
   return (
@@ -38,7 +38,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }}>
             {open ? '✕' : '☰'}
           </button>
-          <span style={{ fontWeight: 700, fontSize: '16px' }}>⚙️ Admin Panel</span>
+          <span style={{ fontWeight: 700, fontSize: '16px' }}>Admin Panel</span>
         </div>
         <button onClick={() => router.push('/dashboard')}
           style={{
@@ -87,7 +87,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
 
           <div style={{ marginBottom: '8px' }}>
-            <p style={{ fontWeight: 700, fontSize: '16px' }}>⚙️ Admin Panel</p>
+            <p style={{ fontWeight: 700, fontSize: '16px' }}>Admin Panel</p>
             <p style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>NOUN TMA Assistant</p>
           </div>
 

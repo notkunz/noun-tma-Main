@@ -69,7 +69,7 @@ export default function QuestionBankPage() {
                         ? 'bg-green-900 text-green-300'
                         : 'bg-orange-900 text-orange-300'
                     }`}>
-                      {q.source === 'course_material' ? '📖 Material' : '🌐 Internet'}
+                      {q.source === 'course_material' ? 'Material' : 'Internet'}
                     </span>
                     <span className="text-gray-500 text-xs">
                       Asked {q.times_asked}x
@@ -86,7 +86,7 @@ export default function QuestionBankPage() {
                 <p className="text-sm text-gray-200 whitespace-pre-wrap">{q.answer_text}</p>
                 <button onClick={() => deleteEntry(q.id)}
                   className="mt-4 text-xs text-red-400 hover:text-red-300">
-                  🗑️ Delete from bank
+                  Delete from bank
                 </button>
               </div>
             )}

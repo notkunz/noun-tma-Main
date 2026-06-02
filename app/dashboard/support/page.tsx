@@ -39,7 +39,6 @@ export default function SupportPage() {
 
   if (sent) return (
     <div className="max-w-lg mx-auto text-center py-20">
-      <p className="text-5xl mb-4">✅</p>
       <h2 className="text-xl font-bold text-gray-800 mb-2">Message Sent!</h2>
       <p className="text-gray-500 text-sm">
         We'll get back to you as soon as possible.
@@ -70,12 +69,12 @@ export default function SupportPage() {
               value={form.category}
               onChange={e => setForm({ ...form, category: e.target.value })}
               className="w-full border rounded-lg p-3 text-sm text-black">
-              <option value="payment">💳 Payment Issue</option>
-              <option value="wallet">💰 Wallet Problem</option>
-              <option value="tma">📝 TMA Not Working</option>
-              <option value="ai">🤖 Wrong AI Answer</option>
-              <option value="account">👤 Account Issue</option>
-              <option value="general">💬 General Enquiry</option>
+              <option value="payment">Payment Issue</option>
+              <option value="wallet">Wallet Problem</option>
+              <option value="tma">TMA Not Working</option>
+              <option value="ai">Wrong AI Answer</option>
+              <option value="account">Account Issue</option>
+              <option value="general">General Enquiry</option>
             </select>
           </div>
 

@@ -168,13 +168,12 @@ if (newCount >= 10 && !data.needs_internet) setShowScoreModal(true)
   if (!session) return (
     <div className="max-w-xl mx-auto mt-20 text-center" style={{ marginTop: '20px' }}>
       <div className="bg-white rounded-2xl shadow-sm border p-10">
-        <p className="text-4xl mb-4">📖</p>
         <h2 className="text-xl font-bold text-gray-800 mb-1">{course?.course_title}</h2>
         <p className="text-gray-500 text-sm mb-2">{course?.course_code} • {course?.level} Level</p>
         <p className="text-green-700 font-bold text-lg mb-6">₦{course?.tma_cost} per session</p>
 
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-left">
-          <p className="text-yellow-800 text-sm font-semibold mb-1">⚠️ Before you start:</p>
+          <p className="text-yellow-800 text-sm font-semibold mb-1">Before you start:</p>
           <ul className="text-yellow-700 text-xs space-y-1 list-disc list-inside">
             <li>You get 10 questions per TMA session</li>
             <li>₦{course?.tma_cost} will be deducted from your wallet</li>
@@ -206,7 +205,6 @@ if (newCount >= 10 && !data.needs_internet) setShowScoreModal(true)
       background: 'white', borderRadius: '20px',
       padding: '32px', maxWidth: '360px', width: '100%', textAlign: 'center'
     }}>
-      <p style={{ fontSize: '40px', marginBottom: '12px' }}>⚠️</p>
       <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#111', marginBottom: '8px' }}>
         Confirm TMA Start
       </h3>
@@ -224,13 +222,13 @@ if (newCount >= 10 && !data.needs_internet) setShowScoreModal(true)
         padding: '12px', marginBottom: '20px', textAlign: 'left'
       }}>
         <p style={{ fontSize: '12px', color: '#374151', margin: '0 0 4px' }}>
-          💰 ₦{course?.tma_cost || 400} will be deducted from your wallet
+          ₦{course?.tma_cost || 400} will be deducted from your wallet
         </p>
         <p style={{ fontSize: '12px', color: '#374151', margin: '0 0 4px' }}>
-          📝 You get up to 10 questions
+          You get up to 10 questions
         </p>
         <p style={{ fontSize: '12px', color: '#374151', margin: 0 }}>
-          🔒 No refund once started
+          No refund once started
         </p>
       </div>
       {error && (
@@ -333,9 +331,9 @@ if (newCount >= 10 && !data.needs_internet) setShowScoreModal(true)
                       ? 'bg-green-100 text-green-600'
                       : 'bg-orange-100 text-orange-600'
                   }`}>
-                    {q.source === 'question_bank' && '⚡ From question bank'}
-                    {q.source === 'course_material' && '📖 From course material'}
-                    {q.source === 'internet' && '🌐 From internet'}
+                    {q.source === 'question_bank' && 'From question bank'}
+                    {q.source === 'course_material' && 'From course material'}
+                    {q.source === 'internet' && 'From internet'}
                   </span>
                 </div>
               </div>
@@ -348,7 +346,7 @@ if (newCount >= 10 && !data.needs_internet) setShowScoreModal(true)
 {internetPending && (
   <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
     <p className="text-orange-800 text-sm font-semibold mb-1">
-      ⚠️ Answer not found in course material
+      Answer not found in course material
     </p>
     <p className="text-orange-700 text-xs mb-3">
       Would you like to search the internet for this answer?
@@ -381,7 +379,7 @@ if (newCount >= 10 && !data.needs_internet) setShowScoreModal(true)
         }}
         disabled={internetLoading}
         className="flex-1 bg-orange-500 text-white rounded-lg py-2 text-sm font-semibold hover:bg-orange-600 disabled:opacity-50">
-        {internetLoading ? 'Searching...' : '🌐 Yes, search internet'}
+        {internetLoading ? 'Searching...' : 'Yes, search internet'}
       </button>
       <button
         onClick={() => setInternetPending(null)}
@@ -419,7 +417,7 @@ if (newCount >= 10 && !data.needs_internet) setShowScoreModal(true)
 {showLeaveModal && (
   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
     <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center">
-      <p className="text-5xl mb-4">⚠️</p>
+
       <h3 className="text-xl font-bold text-gray-800 mb-2">Leave Session?</h3>
       <p className="text-gray-500 text-sm mb-6">
         If you leave now your session stays open but you won't get your answers back.
@@ -446,7 +444,6 @@ if (newCount >= 10 && !data.needs_internet) setShowScoreModal(true)
       {showScoreModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center">
-            <p className="text-5xl mb-4">🎉</p>
             <h3 className="text-xl font-bold text-gray-800 mb-2">TMA Complete!</h3>
             <p className="text-gray-500 text-sm mb-6">
   You answered {session.question_count} question{session.question_count !== 1 ? 's' : ''}. 

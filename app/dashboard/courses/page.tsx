@@ -88,7 +88,7 @@ export default function CoursesPage() {
       {wallet < 400 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
           <p className="text-yellow-800 text-sm font-semibold">
-            ⚠️ Low wallet balance — ₦{wallet.toLocaleString()}
+            Low wallet balance — ₦{wallet.toLocaleString()}
           </p>
           <button
             onClick={() => router.push('/dashboard/wallet')}
@@ -102,7 +102,7 @@ export default function CoursesPage() {
       <div className="mb-6">
         <input
           type="text"
-          placeholder="🔍 Search by course code e.g. GST101, MAC212..."
+          placeholder="Search by course code e.g. GST101, MAC212..."
           value={search}
           onChange={e => setSearch(e.target.value.toUpperCase())}
           className="w-full border border-gray-200 rounded-xl p-4 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 text-black"
@@ -134,7 +134,7 @@ export default function CoursesPage() {
                 <p className="font-bold text-gray-800 text-lg">{m.course_code}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                    ✅ Ready
+                    Ready
                   </span>
                   <span className="text-xs text-gray-400">Cost:400</span>
                 </div>
