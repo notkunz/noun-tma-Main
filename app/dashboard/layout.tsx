@@ -95,7 +95,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
           <div>
             <span style={{ fontWeight: 800, fontSize: '16px', color: 'white' }}>
-              📚 NOUN TMA
+              NOUN TMA
             </span>
           </div>
         </div>

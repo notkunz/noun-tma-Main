@@ -53,9 +53,9 @@ setRecentSessions(uniqueSessions)
       {/* Quick Actions */}
       <div className="grid grid-cols-3 gap-4 mb-8">
 {[
-  { label: 'Browse Courses', icon: '📖', href: '/dashboard/courses' },
-  { label: 'Top Up Wallet', icon: '💰', href: '/dashboard/wallet' },
-  { label: 'My TMAs', icon: '📝', href: '/dashboard/my-tmas' },
+  { label: 'Browse Courses', icon: '', href: '/dashboard/courses' },
+  { label: 'Top Up Wallet', icon: '', href: '/dashboard/wallet' },
+  { label: 'My TMAs', icon: '', href: '/dashboard/my-tmas' },
 ].map(action => (
   <button key={action.href}
     onClick={() => router.push(action.href)}
