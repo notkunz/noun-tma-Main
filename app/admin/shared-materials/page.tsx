@@ -1,251 +1,296 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+"use client";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 interface Material {
-  id: string
-  course_code: string
-  material_url: string | null
-  material_indexed: boolean
-  material_text: string | null
+  id: string;
+  course_code: string;
+  material_url: string | null;
+  material_indexed: boolean;
+  material_text: string | null;
 }
 
 export default function SharedMaterialsPage() {
-  const supabase = createClient()
-  const [materials, setMaterials] = useState<Material[]>([])
-  const [courseCode, setCourseCode] = useState('')
-  const [uploading, setUploading] = useState<string | null>(null)
-  const [message, setMessage] = useState('')
-  const [search, setSearch] = useState('')
+  const supabase = createClient();
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [courseCode, setCourseCode] = useState("");
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
 
   const loadMaterials = async () => {
     const { data } = await supabase
-      .from('shared_materials')
-      .select('*')
-      .order('course_code')
-    setMaterials(data || [])
-  }
+      .from("shared_materials")
+      .select("*")
+      .order("course_code");
+    setMaterials(data || []);
+  };
 
   useEffect(() => {
     const fetchMaterials = async () => {
-      await loadMaterials()
+      await loadMaterials();
+    };
+
+    void fetchMaterials();
+  }, []);
+
+  const uploadMaterial = async (code: string, file: File) => {
+    setUploading(code);
+    setMessage("Uploading...");
+
+    if (file.size > 20 * 1024 * 1024) {
+      setUploading(null);
+      return setMessage("File too large. Max 20MB.");
     }
 
-    void fetchMaterials()
-  }, [])
+    const path = `shared/${code.replace(/\s+/g, "_")}/${file.name}`;
+    console.log(
+      "Uploading to Supabase storage, file size:",
+      file.size,
+      "bytes",
+    );
+    // Upload directly to Supabase Storage from browser
+    const { error: uploadError } = await supabase.storage
+      .from("course-materials")
+      .upload(path, file, { upsert: true });
 
-const uploadMaterial = async (code: string, file: File) => {
-  setUploading(code)
-  setMessage('Uploading...')
+    console.log("Upload error details:", JSON.stringify(uploadError));
 
-  if (file.size > 20 * 1024 * 1024) {
-    setUploading(null)
-    return setMessage('File too large. Max 20MB.')
-  }
+    if (uploadError) {
+      setUploading(null);
+      return setMessage(
+        "Upload error: " +
+          uploadError.message +
+          " | " +
+          JSON.stringify(uploadError),
+      );
+    }
 
-  const path = `shared/${code.replace(/\s+/g, '_')}/${file.name}`
-  console.log('Uploading to Supabase storage, file size:', file.size, 'bytes')
-  // Upload directly to Supabase Storage from browser
-  const { error: uploadError } = await supabase.storage
-    .from('course-materials')
-    .upload(path, file, { upsert: true })
+    const { data: urlData } = supabase.storage
+      .from("course-materials")
+      .getPublicUrl(path);
 
-  console.log('Upload error details:', JSON.stringify(uploadError))
+    // Save to DB via API (small request, fast)
+    const res = await fetch("/api/admin/upload-shared-material", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        course_code: code.toUpperCase(),
+        material_url: urlData.publicUrl,
+      }),
+    });
 
-  if (uploadError) {
-  setUploading(null)
-  return setMessage('Upload error: ' + uploadError.message + ' | ' + JSON.stringify(uploadError))
-}
+    const data = await res.json();
+    setUploading(null);
 
-  const { data: urlData } = supabase.storage
-    .from('course-materials')
-    .getPublicUrl(path)
-
-  // Save to DB via API (small request, fast)
-  const res = await fetch('/api/admin/upload-shared-material', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      course_code: code.toUpperCase(),
-      material_url: urlData.publicUrl
-    })
-  })
-
-  const data = await res.json()
-  setUploading(null)
-
-  if (data.error) return setMessage('DB error: ' + data.error)
-  setMessage(`PDF uploaded for ${code.toUpperCase()}! Now click Index.`)
-  loadMaterials()
-}
+    if (data.error) return setMessage("DB error: " + data.error);
+    setMessage(`PDF uploaded for ${code.toUpperCase()}! Now click Index.`);
+    loadMaterials();
+  };
 
   const indexMaterial = async (code: string) => {
-    setMessage('Indexing ' + code + '...')
-    const res = await fetch('/api/admin/index-shared', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ course_code: code })
-    })
-    const data = await res.json()
-    if (data.success) setMessage(`${code} indexed! ${data.chunks} chunks from ${data.pages} pages.`)
-    else setMessage('Error: ' + data.error)
-    loadMaterials()
-  }
+    setMessage("Indexing " + code + "...");
+    const res = await fetch("/api/admin/index-shared", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ course_code: code }),
+    });
+    const data = await res.json();
+    if (data.success)
+      setMessage(
+        `${code} indexed! ${data.chunks} chunks from ${data.pages} pages.`,
+      );
+    else setMessage("Error: " + data.error);
+    loadMaterials();
+  };
 
   const deleteMaterial = async (code: string, url: string) => {
-    if (!confirm(`Delete material for ${code}?`)) return
-    const path = url.split('/course-materials/')[1]
-    await supabase.storage.from('course-materials').remove([path])
-    await supabase.from('shared_materials')
-      .update({ material_url: null, material_indexed: false, material_text: null })
-      .eq('course_code', code)
-    await supabase.from('shared_material_chunks').delete().eq('course_code', code)
-    setMessage(`Deleted material for ${code}`)
-    loadMaterials()
-  }
+    if (!confirm(`Delete material for ${code}?`)) return;
+    const path = url.split("/course-materials/")[1];
+    await supabase.storage.from("course-materials").remove([path]);
+    await supabase
+      .from("shared_materials")
+      .update({
+        material_url: null,
+        material_indexed: false,
+        material_text: null,
+      })
+      .eq("course_code", code);
+    await supabase
+      .from("shared_material_chunks")
+      .delete()
+      .eq("course_code", code);
+    setMessage(`Deleted material for ${code}`);
+    loadMaterials();
+  };
+
+  const filteredMaterials = materials.filter(
+    (m) =>
+      !courseCode.trim() ||
+      m.course_code.includes(courseCode.trim().toUpperCase()),
+  );
 
   return (
     <div>
       <h2 className="text-2xl font-bold mb-2">Shared Course Materials</h2>
       <p className="text-gray-400 text-sm mb-6">
-        Upload once per course code — all departments sharing that course use the same material automatically.
+        Upload once per course code — all departments sharing that course use
+        the same material automatically.
       </p>
 
       {message && <p className="text-green-400 text-sm mb-4">{message}</p>}
-      <div className="mb-4">
-  <input
-    value={search}
-    onChange={e => setSearch(e.target.value.toUpperCase())}
-    placeholder="Search course code e.g. GST101..."
-    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400"
-  />
-</div>
       {/* Add New */}
       <div className="bg-gray-800 rounded-xl p-6 mb-6">
-        <h3 className="font-semibold mb-4">Upload Material for a Course Code</h3>
+        <h3 className="font-semibold mb-4">
+          Upload Material for a Course Code
+        </h3>
         <div>
           <div className="flex gap-3 mb-3">
             <input
               value={courseCode}
-              onChange={e => setCourseCode(e.target.value.toUpperCase())}
+              onChange={(e) => setCourseCode(e.target.value.toUpperCase())}
               placeholder="Course code e.g. GST101"
               className="flex-1 bg-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400"
             />
-            <label className={`cursor-pointer text-xs px-4 py-2 rounded-lg font-semibold flex items-center ${
-              !courseCode.trim() ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'
-            }`}>
-            {uploading === courseCode ? 'Uploading...' : '📤 Upload PDF'}
-            <input type="file" accept=".pdf" className="hidden"
-              disabled={!courseCode.trim() || uploading === courseCode}
-              onChange={e => {
-                const file = e.target.files?.[0]
-                if (file && courseCode.trim()) uploadMaterial(courseCode.trim(), file)
-              }} />
+            <label
+              className={`cursor-pointer text-xs px-4 py-2 rounded-lg font-semibold flex items-center ${
+                !courseCode.trim()
+                  ? "bg-gray-600 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }`}
+            >
+              {uploading === courseCode ? "Uploading..." : "📤 Upload PDF"}
+              <input
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                disabled={!courseCode.trim() || uploading === courseCode}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file && courseCode.trim())
+                    uploadMaterial(courseCode.trim(), file);
+                }}
+              />
             </label>
           </div>
-          {courseCode.trim() && (
+          {courseCode.trim() &&
             (() => {
               const alreadyExists = materials.some(
-                m => m.course_code === courseCode.trim().toUpperCase()
-              )
+                (m) => m.course_code === courseCode.trim().toUpperCase(),
+              );
               return alreadyExists ? (
                 <div className="mt-3 bg-yellow-900/30 border border-yellow-700/50 rounded-lg px-4 py-3 flex items-center gap-2 text-yellow-300 text-sm">
                   <span>⚠️</span>
-                  <span>Material for {courseCode.trim().toUpperCase()} already exists. Uploading will replace it.</span>
+                  <span>
+                    Material for {courseCode.trim().toUpperCase()} already
+                    exists. Uploading will replace it.
+                  </span>
                 </div>
-              ) : null
-            })()
-          )}
+              ) : null;
+            })()}
         </div>
       </div>
 
       {/* Materials List */}
       <div className="space-y-3">
-        {materials
-        .filter(m => !search || m.course_code.includes(search))
-        .length === 0 && (
+        {filteredMaterials.length === 0 && (
           <p className="text-gray-500 text-sm">No shared materials yet.</p>
         )}
-{materials.map(m => (
-  <div key={m.id} className="bg-gray-800 rounded-xl p-4">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="font-bold text-xl">{m.course_code}</p>
-        <div className="flex items-center gap-2 mt-1">
-          {m.material_url ? (
-            <span className="text-xs bg-blue-800 text-blue-300 px-2 py-0.5 rounded-full">
-              PDF uploaded
-            </span>
-          ) : (
-            <span className="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">
-              No PDF yet
-            </span>
-          )}
-          {m.material_indexed ? (
-            <span className="text-xs bg-green-800 text-green-300 px-2 py-0.5 rounded-full">
-              Indexed & Active
-            </span>
-          ) : (
-            <span className="text-xs bg-yellow-800 text-yellow-300 px-2 py-0.5 rounded-full">
-              Not indexed
-            </span>
-          )}
-        </div>
-        {m.material_url && (
-          <a href={m.material_url} target="_blank"
-            className="text-xs text-blue-400 hover:underline mt-1 block">
-            View PDF ↗
-          </a>
-        )}
-        <p className="text-gray-500 text-xs mt-1">
-          All departments with {m.course_code} use this material automatically
-        </p>
-      </div>
+        {filteredMaterials.map((m) => (
+          <div key={m.id} className="bg-gray-800 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-bold text-xl">{m.course_code}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  {m.material_url ? (
+                    <span className="text-xs bg-blue-800 text-blue-300 px-2 py-0.5 rounded-full">
+                      PDF uploaded
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">
+                      No PDF yet
+                    </span>
+                  )}
+                  {m.material_indexed ? (
+                    <span className="text-xs bg-green-800 text-green-300 px-2 py-0.5 rounded-full">
+                      Indexed & Active
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-yellow-800 text-yellow-300 px-2 py-0.5 rounded-full">
+                      Not indexed
+                    </span>
+                  )}
+                </div>
+                {m.material_url && (
+                  <a
+                    href={m.material_url}
+                    target="_blank"
+                    className="text-xs text-blue-400 hover:underline mt-1 block"
+                  >
+                    View PDF ↗
+                  </a>
+                )}
+                <p className="text-gray-500 text-xs mt-1">
+                  All departments with {m.course_code} use this material
+                  automatically
+                </p>
+              </div>
 
-      <div className="flex flex-col gap-2 ml-4 shrink-0 min-w-32">
-        {/* Upload / Replace */}
-<label className="cursor-pointer text-center text-xs px-4 py-2 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white">
-  {uploading === m.course_code ? 'Uploading... please wait' : m.material_url ? 'Replace PDF' : 'Upload PDF'}
-  <input type="file" accept=".pdf" className="hidden"
-    disabled={uploading === m.course_code}
-    onChange={e => {
-      const file = e.target.files?.[0]
-      if (file) {
-        if (file.size > 20 * 1024 * 1024) {
-          setMessage('File too large. Max 20MB.')
-          return
-        }
-        uploadMaterial(m.course_code, file)
-      }
-    }} />
-</label>
+              <div className="flex flex-col gap-2 ml-4 shrink-0 min-w-32">
+                {/* Upload / Replace */}
+                <label className="cursor-pointer text-center text-xs px-4 py-2 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white">
+                  {uploading === m.course_code
+                    ? "Uploading... please wait"
+                    : m.material_url
+                      ? "Replace PDF"
+                      : "Upload PDF"}
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    className="hidden"
+                    disabled={uploading === m.course_code}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 20 * 1024 * 1024) {
+                          setMessage("File too large. Max 20MB.");
+                          return;
+                        }
+                        uploadMaterial(m.course_code, file);
+                      }
+                    }}
+                  />
+                </label>
 
-        {/* Index button — always show if PDF exists */}
-        {m.material_url && (
-          <button
-            onClick={() => indexMaterial(m.course_code)}
-            className={`text-xs px-4 py-2 rounded-lg font-semibold text-white ${
-              m.material_indexed
-                ? 'bg-gray-600 hover:bg-gray-500'
-                : 'bg-yellow-500 hover:bg-yellow-600'
-            }`}>
-            {m.material_indexed ? 'Re-index' : 'Index Now'}
-          </button>
-        )}
+                {/* Index button — always show if PDF exists */}
+                {m.material_url && (
+                  <button
+                    onClick={() => indexMaterial(m.course_code)}
+                    className={`text-xs px-4 py-2 rounded-lg font-semibold text-white ${
+                      m.material_indexed
+                        ? "bg-gray-600 hover:bg-gray-500"
+                        : "bg-yellow-500 hover:bg-yellow-600"
+                    }`}
+                  >
+                    {m.material_indexed ? "Re-index" : "Index Now"}
+                  </button>
+                )}
 
-        {/* Delete */}
-        {m.material_url && (
-          <button
-            onClick={() => deleteMaterial(m.course_code, m.material_url as string)}
-            className="text-xs bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold">
-            Delete PDF
-          </button>
-        )}
+                {/* Delete */}
+                {m.material_url && (
+                  <button
+                    onClick={() =>
+                      deleteMaterial(m.course_code, m.material_url as string)
+                    }
+                    className="text-xs bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold"
+                  >
+                    Delete PDF
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
-  </div>
-))}
-      </div>
-    </div>
-  )
+  );
 }
