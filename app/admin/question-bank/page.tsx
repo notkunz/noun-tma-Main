@@ -1,28 +1,49 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+
+interface Question {
+  id: string
+  question_text: string
+  answer_text: string
+  times_asked: number
+  source: string
+  courses: {
+    course_code: string
+    course_title: string
+  }
+}
 
 export default function QuestionBankPage() {
   const supabase = createClient()
-  const [questions, setQuestions] = useState<any[]>([])
+  const [questions, setQuestions] = useState<Question[]>([])
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [expanded, setExpanded] = useState<string | null>(null)
 
-  useEffect(() => { loadBank() }, [])
-
-  const loadBank = async () => {
+  const loadBank = useCallback(async () => {
     const { data } = await supabase
       .from('question_bank')
       .select('*, courses(course_code, course_title)')
       .order('times_asked', { ascending: false })
     setQuestions(data || [])
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from('question_bank')
+        .select('*, courses(course_code, course_title)')
+        .order('times_asked', { ascending: false })
+      setQuestions(data || [])
+    }
+    void load()
+  }, [supabase])
 
   const deleteEntry = async (id: string) => {
     if (!confirm('Delete this entry from the question bank?')) return
     await supabase.from('question_bank').delete().eq('id', id)
-    loadBank()
+    void loadBank()
   }
 
   const filtered = questions.filter(q => {

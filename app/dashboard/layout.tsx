@@ -1,37 +1,54 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, usePathname } from 'next/navigation'
+
+interface User {
+  id: string
+  full_name: string
+}
+
+interface WalletData {
+  balance: number
+}
+
+interface PayloadData {
+  new: WalletData
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [wallet, setWallet] = useState<number>(0)
   const [userId, setUserId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [navVisible, setNavVisible] = useState(true)
   const [lastScroll, setLastScroll] = useState(0)
+  const [, startTransition] = useTransition()
 
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return router.push('/login')
+      if (!user) return void router.push('/login')
       const { data: profile } = await supabase
         .from('users').select('id, full_name')
-        .eq('auth_id', user.id).single() as { data: any }
+        .eq('auth_id', user.id).single() as { data: User }
       setUser(profile)
       setUserId(profile?.id)
       const { data: walletData } = await supabase
         .from('wallets').select('balance')
-        .eq('user_id', profile?.id).single() as { data: any }
+        .eq('user_id', profile?.id).single() as { data: WalletData }
       setWallet(walletData?.balance || 0)
     }
-    load()
+    void load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => { setOpen(false) }, [pathname])
+  useEffect(() => {
+    startTransition(() => { setOpen(false) })
+  }, [pathname, startTransition])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -52,10 +69,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'wallets',
         filter: `user_id=eq.${userId}`
-      }, (payload: any) => { setWallet(payload.new.balance) })
+      }, (payload: PayloadData) => { setWallet(payload.new.balance) })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [userId])
+  }, [userId, supabase])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()

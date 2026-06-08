@@ -70,7 +70,7 @@ const handleForgotPassword = async () => {
 {showForgot && (
   <div className="mt-4 bg-gray-700 rounded-xl p-4">
     <p className="text-gray-300 text-xs mb-3">
-      Enter your email and we'll send a reset link
+      Enter your email and we will send a reset link
     </p>
     <input type="email" placeholder="Your email address"
       value={forgotEmail}

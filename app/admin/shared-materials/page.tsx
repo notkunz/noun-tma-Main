@@ -2,14 +2,21 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+interface Material {
+  id: string
+  course_code: string
+  material_url: string | null
+  material_indexed: boolean
+  material_text: string | null
+}
+
 export default function SharedMaterialsPage() {
   const supabase = createClient()
-  const [materials, setMaterials] = useState<any[]>([])
+  const [materials, setMaterials] = useState<Material[]>([])
   const [courseCode, setCourseCode] = useState('')
   const [uploading, setUploading] = useState<string | null>(null)
   const [message, setMessage] = useState('')
-
-  useEffect(() => { loadMaterials() }, [])
+  const [search, setSearch] = useState('')
 
   const loadMaterials = async () => {
     const { data } = await supabase
@@ -18,6 +25,14 @@ export default function SharedMaterialsPage() {
       .order('course_code')
     setMaterials(data || [])
   }
+
+  useEffect(() => {
+    const fetchMaterials = async () => {
+      await loadMaterials()
+    }
+
+    void fetchMaterials()
+  }, [])
 
 const uploadMaterial = async (code: string, file: File) => {
   setUploading(code)
@@ -97,20 +112,28 @@ const uploadMaterial = async (code: string, file: File) => {
       </p>
 
       {message && <p className="text-green-400 text-sm mb-4">{message}</p>}
-
+      <div className="mb-4">
+  <input
+    value={search}
+    onChange={e => setSearch(e.target.value.toUpperCase())}
+    placeholder="Search course code e.g. GST101..."
+    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400"
+  />
+</div>
       {/* Add New */}
       <div className="bg-gray-800 rounded-xl p-6 mb-6">
         <h3 className="font-semibold mb-4">Upload Material for a Course Code</h3>
-        <div className="flex gap-3">
-          <input
-            value={courseCode}
-            onChange={e => setCourseCode(e.target.value.toUpperCase())}
-            placeholder="Course code e.g. GST101"
-            className="flex-1 bg-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400"
-          />
-          <label className={`cursor-pointer text-xs px-4 py-2 rounded-lg font-semibold flex items-center ${
-            !courseCode.trim() ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'
-          }`}>
+        <div>
+          <div className="flex gap-3 mb-3">
+            <input
+              value={courseCode}
+              onChange={e => setCourseCode(e.target.value.toUpperCase())}
+              placeholder="Course code e.g. GST101"
+              className="flex-1 bg-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400"
+            />
+            <label className={`cursor-pointer text-xs px-4 py-2 rounded-lg font-semibold flex items-center ${
+              !courseCode.trim() ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}>
             {uploading === courseCode ? 'Uploading...' : '📤 Upload PDF'}
             <input type="file" accept=".pdf" className="hidden"
               disabled={!courseCode.trim() || uploading === courseCode}
@@ -118,13 +141,29 @@ const uploadMaterial = async (code: string, file: File) => {
                 const file = e.target.files?.[0]
                 if (file && courseCode.trim()) uploadMaterial(courseCode.trim(), file)
               }} />
-          </label>
+            </label>
+          </div>
+          {courseCode.trim() && (
+            (() => {
+              const alreadyExists = materials.some(
+                m => m.course_code === courseCode.trim().toUpperCase()
+              )
+              return alreadyExists ? (
+                <div className="mt-3 bg-yellow-900/30 border border-yellow-700/50 rounded-lg px-4 py-3 flex items-center gap-2 text-yellow-300 text-sm">
+                  <span>⚠️</span>
+                  <span>Material for {courseCode.trim().toUpperCase()} already exists. Uploading will replace it.</span>
+                </div>
+              ) : null
+            })()
+          )}
         </div>
       </div>
 
       {/* Materials List */}
       <div className="space-y-3">
-        {materials.length === 0 && (
+        {materials
+        .filter(m => !search || m.course_code.includes(search))
+        .length === 0 && (
           <p className="text-gray-500 text-sm">No shared materials yet.</p>
         )}
 {materials.map(m => (
@@ -197,7 +236,7 @@ const uploadMaterial = async (code: string, file: File) => {
         {/* Delete */}
         {m.material_url && (
           <button
-            onClick={() => deleteMaterial(m.course_code, m.material_url)}
+            onClick={() => deleteMaterial(m.course_code, m.material_url as string)}
             className="text-xs bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold">
             Delete PDF
           </button>
