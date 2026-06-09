@@ -1,75 +1,92 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+"use client";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+
+type Material = {
+  id: string;
+  course_code: string;
+};
+
+type Profile = {
+  id: string;
+};
+
+type WalletRow = {
+  balance: number;
+};
+
+const TMA_COST = 400;
 
 export default function CoursesPage() {
-  const supabase = createClient()
-  const router = useRouter()
-  const [search, setSearch] = useState('')
-  const [materials, setMaterials] = useState<any[]>([])
-  const [filtered, setFiltered] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [starting, setStarting] = useState<string | null>(null)
-  const [error, setError] = useState('')
-  const [wallet, setWallet] = useState(0)
+  const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
+  const [search, setSearch] = useState("");
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const filtered = useMemo(
+    () =>
+      !search.trim()
+        ? materials
+        : materials.filter((m) =>
+            m.course_code.toLowerCase().includes(search.toLowerCase()),
+          ),
+    [search, materials],
+  );
+  const [loading, setLoading] = useState(true);
+  const [starting, setStarting] = useState<string | null>(null);
+  const [confirmCourse, setConfirmCourse] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [wallet, setWallet] = useState(0);
 
   useEffect(() => {
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
 
-      const { data: profile } = await supabase
-        .from('users').select('id')
-        .eq('auth_id', user.id).single() as { data: any }
-      setUserId(profile?.id)
+      const profileRes = (await supabase
+        .from("users")
+        .select("id")
+        .eq("auth_id", user.id)
+        .single()) as { data: Profile | null };
+      const profile = profileRes.data;
+      if (!profile) return;
 
-      const { data: w } = await supabase
-        .from('wallets').select('balance')
-        .eq('user_id', profile?.id).single() as { data: any }
-      setWallet(w?.balance || 0)
+      const walletRes = (await supabase
+        .from("wallets")
+        .select("balance")
+        .eq("user_id", profile.id)
+        .single()) as { data: WalletRow | null };
+      setWallet(walletRes.data?.balance ?? 0);
 
-      const { data } = await supabase
-        .from('shared_materials')
-        .select('*')
-        .eq('material_indexed', true)
-        .order('course_code')
-      setMaterials(data || [])
-      setFiltered(data || [])
-      setLoading(false)
-    }
-    load()
-  }, [])
-
-  useEffect(() => {
-    if (!search.trim()) {
-      setFiltered(materials)
-    } else {
-      setFiltered(
-        materials.filter(m =>
-          m.course_code.toLowerCase().includes(search.toLowerCase())
-        )
-      )
-    }
-  }, [search, materials])
+      const materialsRes = (await supabase
+        .from("shared_materials")
+        .select("*")
+        .eq("material_indexed", true)
+        .order("course_code")) as { data: Material[] | null };
+      setMaterials(materialsRes.data || []);
+      setLoading(false);
+    };
+    load();
+  }, [supabase]);
 
   const startTMA = async (courseCode: string) => {
-    setStarting(courseCode)
-    setError('')
+    setStarting(courseCode);
+    setError("");
 
     // Find or create a course entry for this course code
-    const res = await fetch('/api/tma/start-by-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ course_code: courseCode })
-    })
-    const data = await res.json()
-    setStarting(null)
+    const res = await fetch("/api/tma/start-by-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ course_code: courseCode }),
+    });
+    const data = await res.json();
+    setStarting(null);
 
-    if (data.error) return setError(data.error)
-    router.push(`/dashboard/tma/${data.course_id}`)
-  }
+    if (data.error) return setError(data.error);
+    router.push(`/dashboard/tma/${data.course_id}`);
+  };
 
   return (
     <div>
@@ -91,8 +108,9 @@ export default function CoursesPage() {
             Low wallet balance — ₦{wallet.toLocaleString()}
           </p>
           <button
-            onClick={() => router.push('/dashboard/wallet')}
-            className="text-xs text-yellow-700 underline mt-1">
+            onClick={() => router.push("/dashboard/wallet")}
+            className="text-xs text-yellow-700 underline mt-1"
+          >
             Top up to start a TMA
           </button>
         </div>
@@ -104,15 +122,18 @@ export default function CoursesPage() {
           type="text"
           placeholder="Search by course code e.g. GST101, MAC212..."
           value={search}
-          onChange={e => setSearch(e.target.value.toUpperCase())}
+          onChange={(e) => setSearch(e.target.value.toUpperCase())}
           className="w-full border border-gray-200 rounded-xl p-4 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 text-black"
         />
       </div>
 
       {loading ? (
         <div className="space-y-3">
-          {[1,2,3,4,5].map(i => (
-            <div key={i} className="bg-white rounded-xl border p-4 animate-pulse">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className="bg-white rounded-xl border p-4 animate-pulse"
+            >
               <div className="h-4 bg-gray-200 rounded w-1/4 mb-2" />
               <div className="h-3 bg-gray-100 rounded w-1/2" />
             </div>
@@ -122,16 +143,22 @@ export default function CoursesPage() {
         <div className="text-center py-16">
           <p className="text-4xl mb-4">📭</p>
           <p className="text-gray-500 text-sm">
-            {search ? `No course found for "${search}"` : 'No courses available yet'}
+            {search
+              ? `No course found for "${search}"`
+              : "No courses available yet"}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map(m => (
-            <div key={m.id}
-              className="bg-white rounded-xl border shadow-sm p-4 flex items-center justify-between">
+          {filtered.map((m) => (
+            <div
+              key={m.id}
+              className="bg-white rounded-xl border shadow-sm p-4 flex items-center justify-between"
+            >
               <div>
-                <p className="font-bold text-gray-800 text-lg">{m.course_code}</p>
+                <p className="font-bold text-gray-800 text-lg">
+                  {m.course_code}
+                </p>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
                     Ready
@@ -140,15 +167,50 @@ export default function CoursesPage() {
                 </div>
               </div>
               <button
-                onClick={() => startTMA(m.course_code)}
+                onClick={() => setConfirmCourse(m.course_code)}
                 disabled={starting === m.course_code}
-                className="bg-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-green-700 disabled:opacity-50 shrink-0">
-                {starting === m.course_code ? 'Starting...' : 'Start TMA'}
+                className="bg-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-green-700 disabled:opacity-50 shrink-0"
+              >
+                {starting === m.course_code ? "Starting..." : "Start TMA"}
               </button>
             </div>
           ))}
         </div>
       )}
+
+      {confirmCourse && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-3">
+              Confirm TMA Start
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Starting a TMA for <strong>{confirmCourse}</strong> costs{" "}
+              <strong>₦{TMA_COST}</strong>. This amount will be deducted from
+              your wallet.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmCourse(null)}
+                className="flex-1 border border-gray-200 rounded-xl py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!confirmCourse) return;
+                  const course = confirmCourse;
+                  setConfirmCourse(null);
+                  await startTMA(course);
+                }}
+                className="flex-1 bg-green-600 text-white rounded-xl py-3 text-sm font-bold hover:bg-green-700"
+              >
+                Confirm and Start
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  )
+  );
 }

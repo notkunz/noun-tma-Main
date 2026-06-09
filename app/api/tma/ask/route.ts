@@ -1,25 +1,54 @@
-import { createClient } from '@supabase/supabase-js'
-import Groq from 'groq-sdk'
-import { NextResponse } from 'next/server'
+import { createClient } from "@supabase/supabase-js";
+import Groq from "groq-sdk";
+import { NextResponse } from "next/server";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! })
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! });
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
 
-async function callGroqWithRetry(groq: any, params: any, retries = 2): Promise<any> {
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "Unexpected error";
+}
+
+type ChunkRow = { chunk_text?: string };
+type BankEntry = {
+  id: string;
+  question_text: string;
+  answer_text: string;
+  times_asked?: number;
+};
+type SessionRow = { id: string; user_id: string; question_count: number };
+type CourseRow = {
+  course_title?: string;
+  course_code?: string;
+  material_text?: string;
+  shared_material_code?: string;
+};
+
+async function callGroqWithRetry(
+  groqClient: unknown,
+  params: unknown,
+  retries = 2,
+): Promise<unknown> {
   for (let i = 0; i <= retries; i++) {
     try {
-      return await groq.chat.completions.create(params)
-    } catch (err: any) {
-      if (err.message?.includes('429') && i < retries) {
-        console.log(`Rate limited, waiting 10s before retry ${i + 1}`)
-        await new Promise(r => setTimeout(r, 10000))
-        continue
+      // use a runtime cast to call the SDK method — preserved logic
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await (groqClient as any).chat.completions.create(params);
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      // detect rate-limit by message text
+      if (message.includes("429") && i < retries) {
+        console.log(`Rate limited, waiting 10s before retry ${i + 1}`);
+        await new Promise((r) => setTimeout(r, 10000));
+        continue;
       }
-      throw err
+      throw err;
     }
   }
 }
@@ -27,230 +56,277 @@ async function callGroqWithRetry(groq: any, params: any, retries = 2): Promise<a
 async function slidingWindowSearch(
   question: string,
   materialCode: string,
-  courseId: string
-): Promise<any[]> {
+  courseId: string,
+): Promise<ChunkRow[]> {
   const words = question
-    .replace(/[^a-zA-Z\s]/g, ' ')
-    .split(' ')
-    .filter((w: string) => w.length > 2)
+    .replace(/[^a-zA-Z\s]/g, " ")
+    .split(" ")
+    .filter((w) => w.length > 2);
 
-  const searchPhrases: string[] = []
-  words.forEach((w: string) => searchPhrases.push(w))
+  const searchPhrases: string[] = [];
+  words.forEach((w) => searchPhrases.push(w));
   for (let i = 0; i < words.length - 1; i++) {
-    searchPhrases.push(`${words[i]} ${words[i + 1]}`)
+    searchPhrases.push(`${words[i]} ${words[i + 1]}`);
   }
   for (let i = 0; i < words.length - 2; i++) {
-    searchPhrases.push(`${words[i]} ${words[i + 1]} ${words[i + 2]}`)
+    searchPhrases.push(`${words[i]} ${words[i + 1]} ${words[i + 2]}`);
   }
 
-  const limitedPhrases = searchPhrases.slice(0, 15)
-  const chunkMap = new Map<string, string>()
-  let foundChunks: any[] = []
+  const limitedPhrases = searchPhrases.slice(0, 15);
+  const chunkMap = new Map<string, string>();
+  let foundChunks: ChunkRow[] = [];
 
   for (const phrase of limitedPhrases) {
-    if (foundChunks.length >= 6) break
-    const { data: matched } = await supabaseAdmin
-      .from('shared_material_chunks')
-      .select('chunk_text')
-      .eq('course_code', materialCode)
-      .ilike('chunk_text', `%${phrase}%`)
-      .limit(2) as { data: any[] | null }
+    if (foundChunks.length >= 6) break;
+    const { data: matched } = (await supabaseAdmin
+      .from("shared_material_chunks")
+      .select("chunk_text")
+      .eq("course_code", materialCode)
+      .ilike("chunk_text", `%${phrase}%`)
+      .limit(2)) as { data: ChunkRow[] | null };
 
     if (matched && matched.length > 0) {
-      matched.forEach((m: any) => {
-        if (!chunkMap.has(m.chunk_text)) chunkMap.set(m.chunk_text, m.chunk_text)
-      })
-      foundChunks = Array.from(chunkMap.values()).map(t => ({ chunk_text: t }))
+      matched.forEach((m) => {
+        if (m.chunk_text && !chunkMap.has(m.chunk_text))
+          chunkMap.set(m.chunk_text, m.chunk_text);
+      });
+      foundChunks = Array.from(chunkMap.values()).map((t) => ({
+        chunk_text: t,
+      }));
     }
   }
 
   if (foundChunks.length === 0) {
     for (const phrase of limitedPhrases.slice(0, 10)) {
-      const { data: matched } = await supabaseAdmin
-        .from('course_material_chunks')
-        .select('chunk_text')
-        .eq('course_id', courseId)
-        .ilike('chunk_text', `%${phrase}%`)
-        .limit(2) as { data: any[] | null }
+      const { data: matched } = (await supabaseAdmin
+        .from("course_material_chunks")
+        .select("chunk_text")
+        .eq("course_id", courseId)
+        .ilike("chunk_text", `%${phrase}%`)
+        .limit(2)) as { data: ChunkRow[] | null };
 
       if (matched && matched.length > 0) {
-        matched.forEach((m: any) => {
-          if (!chunkMap.has(m.chunk_text)) chunkMap.set(m.chunk_text, m.chunk_text)
-        })
-        foundChunks = Array.from(chunkMap.values()).map(t => ({ chunk_text: t }))
-        if (foundChunks.length >= 4) break
+        matched.forEach((m) => {
+          if (m.chunk_text && !chunkMap.has(m.chunk_text))
+            chunkMap.set(m.chunk_text, m.chunk_text);
+        });
+        foundChunks = Array.from(chunkMap.values()).map((t) => ({
+          chunk_text: t,
+        }));
+        if (foundChunks.length >= 4) break;
       }
     }
   }
 
   if (foundChunks.length === 0) {
-    const { data: fallback } = await supabaseAdmin
-      .from('shared_material_chunks')
-      .select('chunk_text')
-      .eq('course_code', materialCode)
-      .limit(8) as { data: any[] | null }
-    foundChunks = fallback || []
+    const { data: fallback } = (await supabaseAdmin
+      .from("shared_material_chunks")
+      .select("chunk_text")
+      .eq("course_code", materialCode)
+      .limit(8)) as { data: ChunkRow[] | null };
+    foundChunks = fallback || [];
   }
 
-  return foundChunks
+  return foundChunks;
 }
 
 export async function POST(req: Request) {
   try {
-    const { session_id, course_id, question, optionsText } = await req.json()
+    const { session_id, course_id, question, optionsText } = await req.json();
 
     if (!question || question.trim().length < 3) {
-      return NextResponse.json({ error: 'Question is too short.' }, { status: 400 })
+      return NextResponse.json(
+        { error: "Question is too short." },
+        { status: 400 },
+      );
     }
 
-    const { data: session } = await supabaseAdmin
-      .from('tma_sessions')
-      .select('*')
-      .eq('id', session_id)
-      .eq('status', 'active')
-      .single() as { data: any }
+    const { data: session } = (await supabaseAdmin
+      .from("tma_sessions")
+      .select("*")
+      .eq("id", session_id)
+      .eq("status", "active")
+      .single()) as { data: SessionRow | null };
 
-    if (!session) return NextResponse.json({ error: 'Session not found or already closed.' }, { status: 400 })
-    if (session.question_count >= 10) return NextResponse.json({ error: 'TMA limit reached.' }, { status: 400 })
+    if (!session)
+      return NextResponse.json(
+        { error: "Session not found or already closed." },
+        { status: 400 },
+      );
+    if (session.question_count >= 10)
+      return NextResponse.json(
+        { error: "TMA limit reached." },
+        { status: 400 },
+      );
 
-    const questionNumber = session.question_count + 1
+    const questionNumber = session.question_count + 1;
 
-    // Check question bank — skip Groq call if empty
-    const { data: bankEntries } = await supabaseAdmin
-      .from('question_bank')
-      .select('id, question_text, answer_text, times_asked')
-      .eq('course_id', course_id)
-      .limit(50) as { data: any[] | null }
+    const { data: bankEntries } = (await supabaseAdmin
+      .from("question_bank")
+      .select("id, question_text, answer_text, times_asked")
+      .eq("course_id", course_id)
+      .limit(50)) as { data: BankEntry[] | null };
 
-    let bankHit = null
+    let bankHit: BankEntry | null = null;
     if (bankEntries && bankEntries.length > 0) {
-      const bankList = bankEntries.map((e, i) => `[${i}] ${e.question_text}`).join('\n')
+      const bankList = bankEntries
+        .map((e, i) => `[${i}] ${e.question_text}`)
+        .join("\n");
       const matchResult = await callGroqWithRetry(groq, {
-        model: 'llama-3.1-8b-instant',
-        messages: [{
-          role: 'user',
-          content: `You are an exact question matcher. 
-Student question: "${question}"
+        model: "llama-3.1-8b-instant",
+        messages: [
+          {
+            role: "user",
+            content: `You are an exact question matcher. \nStudent question: "${question}"\n\nBank questions:\n${bankList}\n\nSTRICT RULES:\n- Only match if questions are asking about the EXACT same topic AND same blank/answer\n- Do NOT match questions that are merely on the same subject\n- Reply MATCH:N only if 90%+ similar\n- Otherwise reply NO_MATCH`,
+          },
+        ],
+        max_tokens: 10,
+      });
 
-Bank questions:
-${bankList}
-
-STRICT RULES:
-- Only match if questions are asking about the EXACT same topic AND same blank/answer
-- Do NOT match questions that are merely on the same subject
-- Reply MATCH:N only if 90%+ similar
-- Otherwise reply NO_MATCH`
-        }],
-        max_tokens: 10
-      })
-
-      const matchResponse = matchResult.choices[0]?.message?.content?.trim() || ''
-      if (matchResponse.startsWith('MATCH:')) {
-        const index = parseInt(matchResponse.replace('MATCH:', '').trim())
-        if (!isNaN(index) && bankEntries[index]) bankHit = bankEntries[index]
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const matchResponse =
+        (matchResult as any).choices?.[0]?.message?.content?.trim() || "";
+      if (matchResponse.startsWith("MATCH:")) {
+        const index = parseInt(matchResponse.replace("MATCH:", "").trim());
+        if (!isNaN(index) && bankEntries[index]) bankHit = bankEntries[index];
       }
     }
 
     if (bankHit) {
       await supabaseAdmin
-        .from('question_bank')
+        .from("question_bank")
         .update({ times_asked: (bankHit.times_asked || 0) + 1 })
-        .eq('id', bankHit.id)
+        .eq("id", bankHit.id);
 
-      const qa = await saveQA(session_id, session.user_id, course_id, question, bankHit.answer_text, 'question_bank', questionNumber)
-      await incrementSession(session_id, questionNumber)
-      return NextResponse.json({ qa })
+      const qa = await saveQA(
+        session_id,
+        session.user_id,
+        course_id,
+        question,
+        bankHit.answer_text,
+        "question_bank",
+        questionNumber,
+      );
+      await incrementSession(session_id, questionNumber);
+      return NextResponse.json({ qa });
     }
 
-    const { data: courseData } = await supabaseAdmin
-      .from('courses')
-      .select('course_title, course_code, material_text, shared_material_code')
-      .eq('id', course_id)
-      .single() as { data: any }
+    const { data: courseData } = (await supabaseAdmin
+      .from("courses")
+      .select("course_title, course_code, material_text, shared_material_code")
+      .eq("id", course_id)
+      .single()) as { data: CourseRow | null };
 
-    if (!courseData) return NextResponse.json({ error: 'Course not found.' }, { status: 404 })
+    if (!courseData)
+      return NextResponse.json({ error: "Course not found." }, { status: 404 });
 
-    const materialCode = courseData.shared_material_code || courseData.course_code
-    const foundChunks = await slidingWindowSearch(question, materialCode, course_id)
+    const materialCode =
+      courseData.shared_material_code || courseData.course_code;
+    const foundChunks = await slidingWindowSearch(
+      question,
+      materialCode || "",
+      course_id,
+    );
 
-    let materialContext = ''
+    let materialContext = "";
     if (foundChunks.length > 0) {
-      materialContext = foundChunks.map((c: any) => c.chunk_text).join('\n\n---\n\n')
+      materialContext = foundChunks
+        .map((c) => c.chunk_text || "")
+        .join("\n\n---\n\n");
     } else if (courseData.material_text) {
-      materialContext = courseData.material_text.slice(0, 10000)
+      materialContext = courseData.material_text.slice(0, 10000);
     }
 
-    const hasMaterial = materialContext.length > 0
+    const hasMaterial = materialContext.length > 0;
 
-    const prompt = `You are a NOUN TMA assistant.
-${hasMaterial ? `COURSE MATERIAL:\n${materialContext}\n\n` : ''}
-QUESTION: "${question}"
-${optionsText ? `OPTIONS:\n${optionsText}` : ''}
-
-RULES:
-1. For fill-in-the-blank questions, find the sentence in the material that contains those exact words with the blank filled in
-2. For definition questions, find what the material says defines or describes the subject
-3. Match your finding to the closest option
-4. The answer in the material may appear as a definition e.g "Radio Rural Forum is the strategy which..." means the answer to "______ is the strategy which..." is "Radio Rural Forum"
-5. "They" or "it" in the material refers to the last named subject — use that as the answer
-6. If the material mentions a group (Sociologists, Economists etc) doing something, that group IS the answer to "who believes/does ___"
-7. Reply with ONLY the letter and option text e.g "B. Sociologists"
-8. If not found reply: ANSWER_NOT_FOUND`
+    const prompt = `You are a NOUN TMA assistant.\n${hasMaterial ? `COURSE MATERIAL:\n${materialContext}\n\n` : ""}\nQUESTION: "${question}"\n${optionsText ? `OPTIONS:\n${optionsText}` : ""}\n\nRULES:\n1. For fill-in-the-blank questions, find the sentence in the material that contains those exact words with the blank filled in\n2. For definition questions, find what the material says defines or describes the subject\n3. Match your finding to the closest option\n4. The answer in the material may appear as a definition e.g "Radio Rural Forum is the strategy which..." means the answer to "______ is the strategy which..." is "Radio Rural Forum"\n5. "They" or "it" in the material refers to the last named subject — use that as the answer\n6. If the material mentions a group (Sociologists, Economists etc) doing something, that group IS the answer to "who believes/does ___"\n7. Reply with ONLY the letter and option text e.g "B. Sociologists"\n8. If not found reply: ANSWER_NOT_FOUND`;
 
     const result = await callGroqWithRetry(groq, {
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 1024
-    })
+      model: "llama-3.3-70b-versatile",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 1024,
+    });
 
-    const answer = result.choices[0]?.message?.content || ''
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const answer = (result as any).choices?.[0]?.message?.content || "";
 
-    if (!answer || answer.trim() === '') {
-      return NextResponse.json({ error: 'Please try again.' }, { status: 500 })
+    if (!answer || answer.trim() === "")
+      return NextResponse.json({ error: "Please try again." }, { status: 500 });
+
+    if (answer.trim() === "ANSWER_NOT_FOUND") {
+      const qa = await saveQA(
+        session_id,
+        session.user_id,
+        course_id,
+        question,
+        "Answer not found ",
+        "course_material",
+        questionNumber,
+      );
+      await incrementSession(session_id, questionNumber);
+      return NextResponse.json({ qa, needs_internet: true });
     }
 
-    if (answer.trim() === 'ANSWER_NOT_FOUND') {
-      const qa = await saveQA(session_id, session.user_id, course_id, question, '⚠️ Answer not found in course material.', 'course_material', questionNumber)
-      await incrementSession(session_id, questionNumber)
-      return NextResponse.json({ qa, needs_internet: true })
+    const qa = await saveQA(
+      session_id,
+      session.user_id,
+      course_id,
+      question,
+      answer,
+      "course_material",
+      questionNumber,
+    );
+    await incrementSession(session_id, questionNumber);
+    return NextResponse.json({ qa });
+  } catch (err: unknown) {
+    console.error("TMA ask error:", err);
+
+    const message = getErrorMessage(err);
+    if (message.includes("rate_limit_exceeded") || message.includes("429")) {
+      const retryMatch = message.match(/try again in (\d+)m(\d+)?/);
+      const minuteMatch = message.match(/(\d+)m/);
+      const minutes = retryMatch?.[1] || minuteMatch?.[1] || "30";
+      return NextResponse.json(
+        { error: `Please try again in ${minutes} minutes.` },
+        { status: 429 },
+      );
     }
 
-    const qa = await saveQA(session_id, session.user_id, course_id, question, answer, 'course_material', questionNumber)
-    await incrementSession(session_id, questionNumber)
-    return NextResponse.json({ qa })
-
-} catch (err: any) {
-  console.error('TMA ask error:', err)
-
-  // Handle Groq rate limit gracefully
-  if (err.message?.includes('rate_limit_exceeded') || err.message?.includes('429')) {
-    // Extract retry time from error message
-    const retryMatch = err.message?.match(/try again in (\d+)m(\d+)?/)
-    const minuteMatch = err.message?.match(/(\d+)m/)
-    const minutes = retryMatch?.[1] || minuteMatch?.[1] || '30'
-    return NextResponse.json({
-      error: `Please try again in ${minutes} minutes.`
-    }, { status: 429 })
+    return NextResponse.json(
+      { error: "Something went wrong. Please try again." },
+      { status: 500 },
+    );
   }
-
-  return NextResponse.json({
-    error: 'Something went wrong. Please try again.'
-  }, { status: 500 })
-}
 }
 
-async function saveQA(session_id: string, user_id: string, course_id: string, question: string, answer: string, source: string, questionNumber: number) {
+async function saveQA(
+  session_id: string,
+  user_id: string,
+  course_id: string,
+  question: string,
+  answer: string,
+  source: string,
+  questionNumber: number,
+) {
   const { data } = await supabaseAdmin
-    .from('tma_questions')
-    .insert({ session_id, user_id, course_id, question_text: question, answer_text: answer, source, question_number: questionNumber })
+    .from("tma_questions")
+    .insert({
+      session_id,
+      user_id,
+      course_id,
+      question_text: question,
+      answer_text: answer,
+      source,
+      question_number: questionNumber,
+    })
     .select()
-    .single()
-  return data
+    .single();
+  return data;
 }
 
 async function incrementSession(session_id: string, newCount: number) {
   await supabaseAdmin
-    .from('tma_sessions')
+    .from("tma_sessions")
     .update({ question_count: newCount })
-    .eq('id', session_id)
+    .eq("id", session_id);
 }
