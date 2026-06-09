@@ -451,8 +451,10 @@ export default function TMAPage() {
                           : "bg-orange-100 text-orange-600"
                     }`}
                   >
-                    {q.source === "question_bank" && "From question bank"}
-                    {q.source === "course_material" && "From course material"}
+                    {q.source === "question_bank" &&
+                      "99% match to course material"}
+                    {q.source === "course_material" &&
+                      "99% match to course material"}
                     {q.source === "internet" && "From AI"}
                   </span>
                 </div>
