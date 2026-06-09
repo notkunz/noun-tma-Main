@@ -438,7 +438,7 @@ export default function TMAPage() {
             <div className="p-4">
               <div className="flex items-start gap-3">
                 <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full shrink-0">
-                  AI
+                  Ans
                 </span>
                 <div className="flex-1">
                   <MathText text={q.answer_text} />
@@ -549,10 +549,10 @@ export default function TMAPage() {
               Leave Session?
             </h3>
             <p className="text-gray-500 text-sm mb-6">
-              If you leave now your session stays open but you won't get your
-              answers back. You've used{" "}
+              If you leave now your session stays open but you will not get your
+              answers back. You have used{" "}
               <strong>{session.question_count}</strong> of your 10 questions.
-              Your wallet won't be refunded.
+              Your wallet will not be refunded.
             </p>
             <div className="flex gap-3">
               <button
@@ -592,8 +592,7 @@ export default function TMAPage() {
               className="w-full border-2 border-green-300 rounded-xl p-3 text-center text-lg font-bold mb-4 focus:outline-none focus:border-green-500"
             />
             <p className="text-xs text-gray-400 mb-4">
-              If you scored 10/10, your Q&As will be saved to help other
-              students!
+              Did you scored 10/10?,your answer helps the app grow
             </p>
             <button
               onClick={closeSession}
