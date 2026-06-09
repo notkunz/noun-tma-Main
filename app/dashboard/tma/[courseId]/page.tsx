@@ -466,7 +466,7 @@ export default function TMAPage() {
       {internetPending && (
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
           <p className="text-orange-800 text-sm font-semibold mb-1">
-            Answer not found in course material
+            Answer not found
           </p>
           <p className="text-orange-700 text-xs mb-3">
             Would you like to ask AI for this answer?
