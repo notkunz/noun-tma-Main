@@ -14,12 +14,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "NOUN TMA Assistant",
-  description:
-    "TMA assistant for NOUN students. Get instant answers to your Tutor Marked Assignments.",
+  description: "TMA service for NOUN students.",
   openGraph: {
     title: "NOUN TMA Assistant",
-    description:
-      "TMA assistant for NOUN students. Get instant answers to your Tutor Marked Assignments.",
+    description: "TMA service for NOUN students.",
     url: "https://noun-tma-assistant-two.vercel.app",
     siteName: "NOUN TMA Assistant",
     images: [
@@ -31,13 +29,8 @@ export const metadata: Metadata = {
     ],
     type: "website",
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "NOUN TMA Assistant",
-    description: "TMA assistant for NOUN students.",
-    images: ["https://noun-tma-assistant-two.vercel.app/og-image.png"],
-  },
 };
+
 export default function RootLayout({
   children,
 }: Readonly<{
