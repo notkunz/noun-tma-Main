@@ -1,0 +1,21 @@
+{
+  "name": "NOUN TMA Assistant",
+  "short_name": "Your assistant",
+  "description": "TMA service for NOUN students",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#fef3c7",
+  "theme_color": "#fef3c7",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
