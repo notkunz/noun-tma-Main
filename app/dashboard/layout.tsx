@@ -107,6 +107,7 @@ export default function DashboardLayout({
     { label: "My TMAs", href: "/dashboard/my-tmas" },
     { label: "Wallet", href: "/dashboard/wallet" },
     { label: "Support", href: "/dashboard/support" },
+    { label: "Profile", href: "/dashboard/profile" },
   ];
 
   return (
