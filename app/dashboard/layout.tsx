@@ -56,7 +56,10 @@ export default function DashboardLayout({
     return () => clearInterval(interval);
   }, []);
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
+    const res = await fetch("/version.json", { cache: "no-store" });
+    const data = await res.json();
+    localStorage.setItem("app_version", data.version);
     window.location.reload();
   };
 
