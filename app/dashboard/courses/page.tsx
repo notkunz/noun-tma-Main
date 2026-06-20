@@ -147,6 +147,12 @@ export default function CoursesPage() {
               ? `No course found for "${search}"`
               : "No courses available yet"}
           </p>
+          <a
+            href="/dashboard/support"
+            className="text-sm text-green-600 font-semibold underline"
+          >
+            Request this course →
+          </a>
         </div>
       ) : (
         <div className="space-y-3">
