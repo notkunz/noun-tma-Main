@@ -151,7 +151,7 @@ export default function CoursesPage() {
             href="/dashboard/support"
             className="text-sm text-green-600 font-semibold underline"
           >
-            Request this course now →
+            Request this course→
           </a>
         </div>
       ) : (
