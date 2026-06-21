@@ -30,14 +30,19 @@ export async function POST(req: Request) {
     .eq("session_id", session_id);
 
   // Close the session
-  await supabaseAdmin
-    .from("tma_sessions")
-    .update({
-      status: "completed",
-      score: parseInt(score),
-      completed_at: new Date().toISOString(),
-    })
-    .eq("id", session_id);
+const { error: updateError } = await supabaseAdmin
+  .from("tma_sessions")
+  .update({
+    status: "completed",
+    score: parseInt(score),
+    completed_at: new Date().toISOString(),
+  })
+  .eq("id", session_id);
+
+if (updateError) {
+  console.error("Failed to close session:", updateError);
+  return NextResponse.json({ error: updateError.message }, { status: 500 });
+}
 
   if (questions && questions.length > 0) {
     let toSave: TMAQuestion[] = [];

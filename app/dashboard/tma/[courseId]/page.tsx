@@ -69,14 +69,14 @@ export default function TMAPage() {
     }
   };
 
-  const loadQuestions = async (sessionId: string) => {
-    const { data } = await supabase
-      .from("tma_questions")
-      .select("*")
-      .eq("session_id", sessionId)
-      .order("question_number");
-    setQuestions(data || []);
-  };
+const loadQuestions = async (sessionId: string) => {
+  const { data } = await supabase
+    .from("tma_questions")
+    .select("*")
+    .eq("session_id", sessionId)
+    .order("question_number");
+  setQuestions((data || []).filter(q => q !== null));
+};
 
   const startSession = async () => {
     setStarting(true);
@@ -418,7 +418,7 @@ export default function TMAPage() {
 
       {/* Q&A History */}
       <div className="space-y-4 mb-6">
-        {questions.map((q, i) => (
+        {questions.filter(q => q && q.question_text).map((q, i) => (
           <div
             key={q.id}
             className="bg-white rounded-xl border shadow-sm overflow-hidden"
