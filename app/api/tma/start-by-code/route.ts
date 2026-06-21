@@ -87,13 +87,16 @@ export async function POST(req: Request) {
 }
 
     // Check for existing active session
-    const { data: existing } = (await supabaseAdmin
-      .from("tma_sessions")
-      .select("id, question_count")
-      .eq("user_id", profile.id)
-      .eq("course_id", course!.id)
-      .eq("status", "active")
-      .single()) as { data: SessionRow | null };
+const { data: existingList } = (await supabaseAdmin
+  .from("tma_sessions")
+  .select("id, question_count")
+  .eq("user_id", profile.id)
+  .eq("course_id", course!.id)
+  .eq("status", "active")
+  .order("created_at", { ascending: false })
+  .limit(1)) as { data: SessionRow[] | null };
+
+const existing = existingList?.[0] || null;
 
     if (existing) {
       return NextResponse.json({
