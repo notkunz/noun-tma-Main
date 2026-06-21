@@ -64,22 +64,27 @@ export async function POST(req: Request) {
       .single()) as { data: CourseRow | null };
 
     // If course doesn't exist, create a minimal one
-    if (!course) {
-      const { data: newCourse } = (await supabaseAdmin
-        .from("courses")
-        .insert({
-          course_code: course_code.toUpperCase(),
-          course_title: course_code.toUpperCase(),
-          level: "100",
-          semester: "first",
-          tma_cost: TMA_COST,
-          shared_material_code: course_code.toUpperCase(),
-          material_indexed: true,
-        })
-        .select()
-        .single()) as { data: CourseRow | null };
-      course = newCourse;
-    }
+ if (!course) {
+  const { data: newCourse, error: courseError } = await supabaseAdmin
+    .from("courses")
+    .insert({
+      course_code: course_code.toUpperCase(),
+      course_title: course_code.toUpperCase(),
+      level: "100",
+      semester: "first",
+      tma_cost: TMA_COST,
+      shared_material_code: course_code.toUpperCase(),
+      material_indexed: true,
+    })
+    .select()
+    .single() as { data: CourseRow | null, error: any };
+
+  if (courseError || !newCourse) {
+    console.error('Course creation failed:', courseError);
+    return NextResponse.json({ error: 'Failed to create course: ' + (courseError?.message || 'unknown') }, { status: 500 });
+  }
+  course = newCourse;
+}
 
     // Check for existing active session
     const { data: existing } = (await supabaseAdmin
