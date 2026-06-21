@@ -201,7 +201,7 @@ export default function TMAPage() {
             <ul className="text-yellow-700 text-xs space-y-1 list-disc list-inside">
               <li>You get 10 questions per TMA session</li>
               <li>₦{course?.tma_cost} will be deducted from your wallet</li>
-              <li>You cannot pause — complete all 10 questions</li>
+              <li>Complete all 10 questions</li>
               <li>Score 10/10? Your answers help future students!</li>
             </ul>
           </div>
