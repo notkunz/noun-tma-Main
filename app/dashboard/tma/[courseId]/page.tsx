@@ -69,14 +69,14 @@ export default function TMAPage() {
     }
   };
 
-const loadQuestions = async (sessionId: string) => {
-  const { data } = await supabase
-    .from("tma_questions")
-    .select("*")
-    .eq("session_id", sessionId)
-    .order("question_number");
-  setQuestions((data || []).filter(q => q !== null));
-};
+  const loadQuestions = async (sessionId: string) => {
+    const { data } = await supabase
+      .from("tma_questions")
+      .select("*")
+      .eq("session_id", sessionId)
+      .order("question_number");
+    setQuestions((data || []).filter((q) => q !== null));
+  };
 
   const startSession = async () => {
     setStarting(true);
@@ -418,50 +418,54 @@ const loadQuestions = async (sessionId: string) => {
 
       {/* Q&A History */}
       <div className="space-y-4 mb-6">
-        {questions.filter(q => q && q.question_text).map((q, i) => (
-          <div
-            key={q.id}
-            className="bg-white rounded-xl border shadow-sm overflow-hidden"
-          >
-            {/* Question */}
-            <div className="bg-gray-50 p-4 border-b">
-              <div className="flex items-start gap-3">
-                <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full shrink-0">
-                  Q{i + 1}
-                </span>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                  {q.question_text}
-                </p>
-              </div>
-            </div>
-            {/* Answer */}
-            <div className="p-4">
-              <div className="flex items-start gap-3">
-                <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full shrink-0">
-                  Ans
-                </span>
-                <div className="flex-1">
-                  <MathText text={q.answer_text} />
-                  <span
-                    className={`inline-block mt-2 text-xs px-2 py-0.5 rounded-full ${
-                      q.source === "question_bank"
-                        ? "bg-purple-100 text-purple-600"
-                        : q.source === "course_material"
-                          ? "bg-green-100 text-green-600"
-                          : "bg-orange-100 text-orange-600"
-                    }`}
-                  >
-                    {q.source === "question_bank" &&
-                      "99% match to course material"}
-                    {q.source === "course_material" &&
-                      "99% match to course material"}
-                    {q.source === "internet" && "From AI"}
+        {questions
+          .filter((q) => q && q.question_text)
+          .map((q, i) => (
+            <div
+              key={q.id}
+              className="bg-white rounded-xl border shadow-sm overflow-hidden"
+            >
+              {/* Question */}
+              <div className="bg-gray-50 p-4 border-b">
+                <div className="flex items-start gap-3">
+                  <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full shrink-0">
+                    Q{i + 1}
                   </span>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                    {q.question_text}
+                  </p>
+                </div>
+              </div>
+              {/* Answer */}
+              <div className="p-4">
+                <div className="flex items-start gap-3">
+                  <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full shrink-0">
+                    Ans
+                  </span>
+                  <div className="flex-1">
+                    <MathText text={q.answer_text} />
+                    <span
+                      className={`inline-block mt-2 text-xs px-2 py-0.5 rounded-full ${
+                        q.source === "question_bank"
+                          ? "bg-purple-100 text-purple-600"
+                          : q.source === "course_material"
+                            ? "bg-green-100 text-green-600"
+                            : "bg-orange-100 text-orange-600"
+                      }`}
+                    >
+                      {q.source === "question_bank" &&
+                        `${q.match_percentage || 99}% match to course material`}
+                      {q.source === "course_material" &&
+                        `${q.match_percentage || 75}% match to course material`}
+                      {q.source === "internet" && "From AI"}
+                      {q.source === "not_found" &&
+                        "Answer not found in material"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
       </div>
 
       {/* Internet Fallback Prompt */}

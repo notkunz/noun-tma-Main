@@ -206,6 +206,7 @@ export async function POST(req: Request) {
         bankHit.answer_text,
         "question_bank",
         questionNumber,
+        99,
       );
       await incrementSession(session_id, questionNumber);
       return NextResponse.json({ qa });
@@ -259,9 +260,10 @@ export async function POST(req: Request) {
         session.user_id,
         course_id,
         question,
-        "Answer not found ",
+        "Answer not found",
         "not_found",
         questionNumber,
+        0,
       );
       await incrementSession(session_id, questionNumber);
       return NextResponse.json({ qa, needs_internet: true });
@@ -275,7 +277,9 @@ export async function POST(req: Request) {
       answer,
       "course_material",
       questionNumber,
+      foundChunks.length > 0 ? Math.min(95, 60 + foundChunks.length * 5) : 30, // <- confidence score
     );
+
     await incrementSession(session_id, questionNumber);
     return NextResponse.json({ qa });
   } catch (err: unknown) {
@@ -307,6 +311,7 @@ async function saveQA(
   answer: string,
   source: string,
   questionNumber: number,
+  matchPercentage: number = 0,
 ) {
   const { data } = await supabaseAdmin
     .from("tma_questions")
@@ -318,6 +323,7 @@ async function saveQA(
       answer_text: answer,
       source,
       question_number: questionNumber,
+      match_percentage: matchPercentage,
     })
     .select()
     .single();
