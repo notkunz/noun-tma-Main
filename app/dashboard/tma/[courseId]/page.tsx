@@ -458,8 +458,7 @@ export default function TMAPage() {
                       {q.source === "course_material" &&
                         `${q.match_percentage || 75}% match to course material`}
                       {q.source === "internet" && "From AI"}
-                      {q.source === "not_found" &&
-                        "Answer not found in material"}
+                      {q.source === "not_found" && "Answer not found."}
                     </span>
                   </div>
                 </div>
