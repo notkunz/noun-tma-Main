@@ -271,7 +271,8 @@ export async function POST(req: Request) {
       model: "openai/gpt-oss-120b",
       messages: [{ role: "user", content: prompt }],
       max_tokens: 1024,
-      
+      console.log('DEBUG: Groq response:', answer);
+console.log('DEBUG: answer.trim() === "ANSWER_NOT_FOUND"?', answer.trim() === "ANSWER_NOT_FOUND");
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -304,8 +305,6 @@ export async function POST(req: Request) {
       "course_material",
       questionNumber,
       foundChunks.length > 0 ? Math.min(95, 60 + foundChunks.length * 5) : 30, // <- confidence score
-      console.log('DEBUG: Groq response:', answer);
-console.log('DEBUG: answer.trim() === "ANSWER_NOT_FOUND"?', answer.trim() === "ANSWER_NOT_FOUND");
     );
 
     await incrementSession(session_id, questionNumber);
