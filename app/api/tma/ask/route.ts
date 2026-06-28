@@ -264,8 +264,7 @@ export async function POST(req: Request) {
       materialContext.length,
     );
 
-    const prompt = `You are a NOUN TMA assistant.\n${hasMaterial ? `COURSE MATERIAL:\n${materialContext}\n\n` : ""}\nQUESTION: "${question}"\n${optionsText ? `OPTIONS:\n${optionsText}` : ""}\n\nRULES:\n1. For fill-in-the-blank questions, find the sentence in the material that contains those exact words with the blank filled in\n2. For definition questions, find what the material says defines or describes the subject\n3. Match your finding to the closest option\n4. The answer in the material may appear as a definition e.g "Radio Rural Forum is the strategy which..." means the answer to "______ is the strategy which..." is "Radio Rural Forum"\n5. "They" or "it" in the material refers to the last named subject — use that as the answer\n6. If the material mentions a group (Sociologists, Economists etc) doing something, that group IS the answer to "who believes/does ___"\n7. Reply with ONLY the letter and option text e.g "B. Sociologists"\n8. If not found reply: ANSWER_NOT_FOUND`;
-
+const prompt = `You are a NOUN TMA assistant.\n${hasMaterial ? `COURSE MATERIAL:\n${materialContext}\n\n` : ""}\nQUESTION: "${question}"\n...`
     const result = await callGroqWithRetry(groq, {
       model: "openai/gpt-oss-120b",
       messages: [{ role: "user", content: prompt }],
@@ -279,7 +278,8 @@ export async function POST(req: Request) {
     if (!answer || answer.trim() === "")
       return NextResponse.json({ error: "Please try again." }, { status: 500 });
 
-    if (answer.trim() === "ANSWER_NOT_FOUND") {
+    console.log('DEBUG: Full Groq answer:', answer);
+if (answer.trim() === "ANSWER_NOT_FOUND") {
       const qa = await saveQA(
         session_id,
         session.user_id,
