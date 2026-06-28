@@ -336,9 +336,11 @@ async function saveQA(
   answer: string,
   source: string,
   questionNumber: number,
-  matchPercentage: number = 0,
+  matchPercentage: number = 0
 ) {
-  const { data } = await supabaseAdmin
+  console.log('DEBUG: saveQA called with:', { source, matchPercentage, answer: answer.slice(0, 50) });
+  
+  const { data, error } = await supabaseAdmin
     .from("tma_questions")
     .insert({
       session_id,
@@ -352,6 +354,13 @@ async function saveQA(
     })
     .select()
     .single();
+    
+  if (error) {
+    console.error('DEBUG: saveQA insert failed:', error);
+  } else {
+    console.log('DEBUG: saveQA insert succeeded, data.id:', data?.id);
+  }
+  
   return data;
 }
 
