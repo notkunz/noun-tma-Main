@@ -254,8 +254,6 @@ export async function POST(req: Request) {
         .join("\n\n---\n\n");
     } else if (courseData.material_text) {
       materialContext = courseData.material_text.slice(0, 10000);
-               console.log(`Chunk ${idx}: ${chunk.chunk_text?.slice(0, 150)}...`);
-
     }
 
     const hasMaterial = materialContext.length > 0;
