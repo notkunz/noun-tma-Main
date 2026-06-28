@@ -223,6 +223,13 @@ export async function POST(req: Request) {
 
     const materialCode =
       courseData.shared_material_code || courseData.course_code;
+    console.log("DEBUG: materialCode =", materialCode);
+    console.log(
+      "DEBUG: shared_material_code =",
+      courseData.shared_material_code,
+    );
+    console.log("DEBUG: course_code =", courseData.course_code);
+
     const foundChunks = await slidingWindowSearch(
       question,
       materialCode || "",
