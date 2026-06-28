@@ -248,9 +248,11 @@ export async function POST(req: Request) {
 
     let materialContext = "";
     if (foundChunks.length > 0) {
+      console.log('DEBUG: Found chunks:');
       materialContext = foundChunks
         .map((c) => c.chunk_text || "")
         .join("\n\n---\n\n");
+         console.log(`Chunk ${idx}: ${chunk.chunk_text?.slice(0, 150)}...`);
     } else if (courseData.material_text) {
       materialContext = courseData.material_text.slice(0, 10000);
     }
@@ -269,6 +271,7 @@ export async function POST(req: Request) {
       model: "openai/gpt-oss-120b",
       messages: [{ role: "user", content: prompt }],
       max_tokens: 1024,
+      
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -301,6 +304,8 @@ export async function POST(req: Request) {
       "course_material",
       questionNumber,
       foundChunks.length > 0 ? Math.min(95, 60 + foundChunks.length * 5) : 30, // <- confidence score
+      console.log('DEBUG: Groq response:', answer);
+console.log('DEBUG: answer.trim() === "ANSWER_NOT_FOUND"?', answer.trim() === "ANSWER_NOT_FOUND");
     );
 
     await incrementSession(session_id, questionNumber);
