@@ -273,8 +273,6 @@ export async function POST(req: Request) {
       max_tokens: 1024,
       
     });
-console.log('DEBUG: Groq response:', answer);
-console.log('DEBUG: answer.trim() === "ANSWER_NOT_FOUND"?', answer.trim() === "ANSWER_NOT_FOUND");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const answer = (result as any).choices?.[0]?.message?.content || "";
