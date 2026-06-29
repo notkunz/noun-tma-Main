@@ -264,7 +264,21 @@ export async function POST(req: Request) {
       materialContext.length,
     );
 
-const prompt = `You are a NOUN TMA assistant.\n${hasMaterial ? `COURSE MATERIAL:\n${materialContext}\n\n` : ""}\nQUESTION: "${question}"\n...`
+const prompt = `You are a NOUN TMA assistant. Your job is to extract ONLY the direct answer to the student's question from the provided course material.
+
+${hasMaterial ? `COURSE MATERIAL:\n${materialContext}\n\n` : ""}
+QUESTION: "${question}"
+
+RULES:
+1. Extract ONLY the most direct, concise answer from the material
+2. If it's a definition question, provide a 1-2 sentence definition (not full explanations)
+3. If it's a concept question, explain in 2-3 sentences maximum
+4. Do NOT include tables, lists, examples, or supporting material unless the question specifically asks for them
+5. Do NOT include introductions, disclaimers, or "feel free to..." text
+6. Answer in the same style the material uses
+7. If it is a mutiple choice question, reurn only the answer without add the options (a, b, c, d or e)
+
+ANSWER:`;
     const result = await callGroqWithRetry(groq, {
       model: "openai/gpt-oss-120b",
       messages: [{ role: "user", content: prompt }],
