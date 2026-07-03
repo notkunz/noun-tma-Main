@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   if (!user)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: profile, error: profileError } = await supabaseAdmin
+  const { data: profile, error: profileError } = await supabase
     .from("users")
     .select("id, email")
     .eq("auth_id", user.id)
@@ -25,7 +25,11 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!profile) return;
+  if (!profile)
+    return NextResponse.json(
+      { error: "User profile not found" },
+      { status: 404 },
+    );
 
   // Create a pending transaction first
   const { data: transaction } = await supabase
