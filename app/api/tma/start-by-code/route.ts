@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 const supabaseAdmin = createClient(
@@ -23,7 +24,23 @@ type SessionRow = { id: string; question_count?: number };
 export async function POST(req: Request) {
   try {
     const { course_code } = await req.json();
-    const supabase = await createServerSupabaseClient();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options),
+            );
+          },
+        },
+      },
+    );
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -64,39 +81,45 @@ export async function POST(req: Request) {
       .single()) as { data: CourseRow | null };
 
     // If course doesn't exist, create a minimal one
- if (!course) {
-  const { data: newCourse, error: courseError } = await supabaseAdmin
-    .from("courses")
-    .insert({
-      course_code: course_code.toUpperCase(),
-      course_title: course_code.toUpperCase(),
-      level: "100",
-      semester: "first",
-      tma_cost: TMA_COST,
-      shared_material_code: course_code.toUpperCase(),
-      material_indexed: true,
-    })
-    .select()
-    .single() as { data: CourseRow | null, error: any };
+    if (!course) {
+      const { data: newCourse, error: courseError } = (await supabaseAdmin
+        .from("courses")
+        .insert({
+          course_code: course_code.toUpperCase(),
+          course_title: course_code.toUpperCase(),
+          level: "100",
+          semester: "first",
+          tma_cost: TMA_COST,
+          shared_material_code: course_code.toUpperCase(),
+          material_indexed: true,
+        })
+        .select()
+        .single()) as { data: CourseRow | null; error: any };
 
-  if (courseError || !newCourse) {
-    console.error('Course creation failed:', courseError);
-    return NextResponse.json({ error: 'Failed to create course: ' + (courseError?.message || 'unknown') }, { status: 500 });
-  }
-  course = newCourse;
-}
+      if (courseError || !newCourse) {
+        console.error("Course creation failed:", courseError);
+        return NextResponse.json(
+          {
+            error:
+              "Failed to create course: " + (courseError?.message || "unknown"),
+          },
+          { status: 500 },
+        );
+      }
+      course = newCourse;
+    }
 
     // Check for existing active session
-const { data: existingList } = (await supabaseAdmin
-  .from("tma_sessions")
-  .select("id, question_count")
-  .eq("user_id", profile.id)
-  .eq("course_id", course!.id)
-  .eq("status", "active")
-  .order("created_at", { ascending: false })
-  .limit(1)) as { data: SessionRow[] | null };
+    const { data: existingList } = (await supabaseAdmin
+      .from("tma_sessions")
+      .select("id, question_count")
+      .eq("user_id", profile.id)
+      .eq("course_id", course!.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)) as { data: SessionRow[] | null };
 
-const existing = existingList?.[0] || null;
+    const existing = existingList?.[0] || null;
 
     if (existing) {
       return NextResponse.json({
